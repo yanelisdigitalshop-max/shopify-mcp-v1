@@ -118,6 +118,14 @@ tests/                 Pruebas del servidor
 - **Nombre.** La app se llama Vendiva. Una prueba revisa que el nombre viejo no aparezca en ningún archivo.
 - **Honestidad.** Lo que todavía no existe se marca como «Todavía no está construido». Nada de reseñas, ventas ni calificaciones inventadas.
 
+## Decisiones de la dueña sobre la Parte 1
+
+- La pestaña Planes se queda como está: su plan, su saldo de créditos y la tabla de los 4 planes.
+- Los créditos del plan se reponen solos el día 1.
+- El modelo de Claude es `claude-opus-5-5` por ahora.
+- **Queda para después, por decisión suya (no construir todavía):** recuperar la contraseña olvidada, y aceptar las políticas y confirmar 18 años al registrarse.
+- El hosting todavía no se elige: por ahora se prueba en local.
+
 ## Datos del negocio
 
 Vendiva · 420 Opa Locka Blvd, North Miami, FL 33168 · machadodelosangele@gmail.com · Ley de Florida.
