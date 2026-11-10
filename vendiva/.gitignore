@@ -1,0 +1,13 @@
+# Llaves y configuración privada: NUNCA se suben
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+
+# Base de datos local de desarrollo (PGlite)
+.datos-locales/
+
+.DS_Store
+*.log

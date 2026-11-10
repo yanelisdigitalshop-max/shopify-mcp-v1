@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.env.*
+.datos-locales
+tests
+*.log
+.git

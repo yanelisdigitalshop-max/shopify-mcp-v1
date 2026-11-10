@@ -1,0 +1,39 @@
+{
+  "name": "vendiva",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vendiva: app para afiliadas de TikTok Shop. Servidor (Express + PostgreSQL) y cliente (React + Tailwind).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env server/index.js",
+    "build": "vite build",
+    "start": "NODE_ENV=production node --env-file-if-exists=.env server/index.js",
+    "migrar": "node --env-file-if-exists=.env server/db/migrar.js",
+    "probar:claude": "node --env-file-if-exists=.env server/ia/probar-claude.js",
+    "test": "node --test --test-concurrency=1 \"tests/*.test.js\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.7.0",
+    "@fontsource-variable/figtree": "^5.3.0",
+    "compression": "^1.8.2",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0",
+    "lucide-react": "^1.70.0",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@vitejs/plugin-react": "^6.3.0",
+    "autoprefixer": "^10.6.2",
+    "postcss": "^8.5.32",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.3.7"
+  }
+}
