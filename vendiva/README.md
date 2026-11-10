@@ -8,7 +8,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 
 | Parte | Qué es | Estado |
 |---|---|---|
-| Paso 0 | Conexión con Claude leyendo la llave de variables de entorno | Código listo. **Falta que la dueña ponga su llave** |
+| Paso 0 | Conexión con Claude leyendo la llave de variables de entorno | Listo. Probado con la llave de la dueña y `claude-opus-5-5` (10 nov 2026) |
 | Parte 1 | Base y cuentas: registro (con confirmación de 18 años), sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
 | Parte 2 | Guiones con la IA real | Pendiente |
 | Parte 3 | Buscador y tendencias | Pendiente |
