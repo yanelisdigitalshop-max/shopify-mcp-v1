@@ -47,7 +47,7 @@ async function main() {
   const servidor = app.listen(config.puerto, () => {
     console.log(`Vendiva lista en http://localhost:${config.puerto}`);
     console.log(`  base de datos: ${db.motor === 'postgres' ? 'PostgreSQL' : `local (${config.dirDatosLocales})`}`);
-    console.log(`  Claude: ${config.anthropic.llaveConfigurada ? 'llave puesta' : 'falta la llave (ANTHROPIC_API_KEY)'}`);
+    console.log(`  Claude: ${config.anthropic.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_ANTHROPIC_API_KEY)'}`);
   });
 
   const limpieza = setInterval(() => borrarSesionesVencidas(db).catch(() => {}), 6 * 60 * 60 * 1000);

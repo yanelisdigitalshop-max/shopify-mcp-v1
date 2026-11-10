@@ -7,7 +7,7 @@
 import { callClaude, parseClaudeJson, claudeConfigurado, ErrorIA, MODELO_POR_DEFECTO } from './claude.js';
 
 if (!claudeConfigurado()) {
-  console.log('Falta la llave. Ponla en la variable de entorno ANTHROPIC_API_KEY del servidor');
+  console.log('Falta la llave. Ponla en la variable de entorno VENDIVA_ANTHROPIC_API_KEY del servidor');
   console.log('(en tu computadora: en el archivo .env, que no se sube al repositorio).');
   console.log('No la pegues en ningún chat.');
   process.exit(1);

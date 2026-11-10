@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Anthropic from '@anthropic-ai/sdk';
-import { callClaude, parseClaudeJson, ErrorIA } from '../server/ia/claude.js';
+import { callClaude, parseClaudeJson, claudeConfigurado, ErrorIA } from '../server/ia/claude.js';
+import { leerConfig } from '../server/config.js';
 
 const respuesta = (texto, extra = {}) => ({
   stop_reason: 'end_turn',
@@ -116,11 +117,23 @@ test('callClaude traduce los errores de Anthropic a avisos amables', async () =>
 });
 
 test('callClaude sin llave: avisa que falta, sin intentar llamar', async () => {
-  const guardada = process.env.ANTHROPIC_API_KEY;
-  delete process.env.ANTHROPIC_API_KEY;
+  const nombres = ['VENDIVA_ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY'];
+  const guardadas = nombres.map((n) => process.env[n]);
+  for (const n of nombres) delete process.env[n];
   try {
     await assert.rejects(callClaude([{ role: 'user', content: 'Hola' }]), (e) => e instanceof ErrorIA && e.codigo === 'SIN_LLAVE');
   } finally {
-    if (guardada !== undefined) process.env.ANTHROPIC_API_KEY = guardada;
+    nombres.forEach((n, i) => { if (guardadas[i] !== undefined) process.env[n] = guardadas[i]; });
   }
+});
+
+test('la llave se acepta con el nombre propio de Vendiva o con el de siempre', () => {
+  assert.equal(claudeConfigurado({}), false);
+  assert.equal(claudeConfigurado({ VENDIVA_ANTHROPIC_API_KEY: '   ' }), false);
+  assert.equal(claudeConfigurado({ ANTHROPIC_API_KEY: 'sk-ant-de-mentira' }), true);
+  assert.equal(claudeConfigurado({ VENDIVA_ANTHROPIC_API_KEY: 'sk-ant-de-mentira' }), true);
+  assert.equal(leerConfig({ VENDIVA_ANTHROPIC_API_KEY: 'sk-ant-de-mentira' }).anthropic.llaveConfigurada, true);
+  assert.equal(leerConfig({ ANTHROPIC_API_KEY: 'sk-ant-de-mentira' }).anthropic.llaveConfigurada, true);
+  assert.equal(leerConfig({}).anthropic.llaveConfigurada, false);
+  assert.ok(!JSON.stringify(leerConfig({ VENDIVA_ANTHROPIC_API_KEY: 'sk-ant-de-mentira' })).includes('sk-ant'), 'la configuración guarda solo si existe, nunca el valor');
 });

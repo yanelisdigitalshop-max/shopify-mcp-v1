@@ -1,8 +1,11 @@
 // Paso 0: conexión con Claude (Anthropic).
 //
-// La llave es de la dueña y vive SOLO en la variable de entorno ANTHROPIC_API_KEY
-// del servidor. Este archivo nunca la lee para mostrarla, registrarla ni enviarla
-// al cliente: el SDK la toma del entorno por su cuenta.
+// La llave es de la dueña y vive SOLO en una variable de entorno del servidor:
+//   VENDIVA_ANTHROPIC_API_KEY   (la preferida)
+//   ANTHROPIC_API_KEY           (el nombre de siempre; vale si la otra no está)
+// El nombre propio existe porque ANTHROPIC_API_KEY también lo leen otras
+// herramientas (como Claude Code): donde conviven, así no se pisan.
+// Este archivo nunca muestra la llave, no la registra y no la envía al cliente.
 
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -30,8 +33,17 @@ export class ErrorIA extends Error {
 
 let clienteCompartido = null;
 
+// La llave de Vendiva solo viaja a la API de Anthropic, pase lo que pase con
+// otras variables del entorno (ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN...).
+const API_DE_ANTHROPIC = 'https://api.anthropic.com';
+
+/** Solo para uso interno del servidor: nunca se imprime ni se devuelve al cliente. */
+function leerLlave(env = process.env) {
+  return env.VENDIVA_ANTHROPIC_API_KEY?.trim() || env.ANTHROPIC_API_KEY?.trim() || null;
+}
+
 export function claudeConfigurado(env = process.env) {
-  return Boolean(env.ANTHROPIC_API_KEY?.trim());
+  return Boolean(leerLlave(env));
 }
 
 function obtenerCliente() {
@@ -41,7 +53,7 @@ function obtenerCliente() {
       'La inteligencia artificial todavía no está conectada. Falta poner la llave de Anthropic en la configuración del servidor.',
     );
   }
-  clienteCompartido ??= new Anthropic(); // toma ANTHROPIC_API_KEY del entorno
+  clienteCompartido ??= new Anthropic({ apiKey: leerLlave(), authToken: null, baseURL: API_DE_ANTHROPIC });
   return clienteCompartido;
 }
 

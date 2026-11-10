@@ -22,8 +22,10 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 
 La llave la crea la dueña en [console.anthropic.com](https://console.anthropic.com) con su propia cuenta. **Nunca se pega en un chat, en el código ni en el repositorio.** Solo va en uno de estos dos lugares:
 
-- **En producción:** en la configuración segura del hosting, como variable de entorno llamada `ANTHROPIC_API_KEY`.
+- **En producción:** en la configuración segura del hosting, como variable de entorno llamada `VENDIVA_ANTHROPIC_API_KEY`.
 - **En una computadora de trabajo:** en el archivo `.env` (se crea copiando `.env.example`). Ese archivo está en `.gitignore` y no se sube.
+
+La app lee `VENDIVA_ANTHROPIC_API_KEY` y, si no existe, `ANTHROPIC_API_KEY`. Se prefiere el nombre propio porque `ANTHROPIC_API_KEY` también lo leen otras herramientas (Claude Code, por ejemplo) y donde conviven se pisarían. La llave solo se envía a `api.anthropic.com`.
 
 Para comprobar que quedó bien, sin que nadie vea la llave:
 
@@ -81,7 +83,7 @@ Variables de entorno (ver `.env.example`):
 | Variable | Para qué | Obligatoria |
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL donde viven las cuentas y los datos | Sí en producción. Sin ella el servidor no arranca |
-| `ANTHROPIC_API_KEY` | Llave de Claude (Paso 0) | Desde la Parte 2 |
+| `VENDIVA_ANTHROPIC_API_KEY` | Llave de Claude (Paso 0). También vale `ANTHROPIC_API_KEY` | Desde la Parte 2 |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
 | `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-opus-5-5` | No |
 | `PORT` | Puerto. Por defecto 3000 | No |

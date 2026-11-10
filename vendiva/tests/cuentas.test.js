@@ -187,7 +187,7 @@ test('/api/salud dice si la llave está puesta sin mostrarla', async () => {
   assert.equal(sin.json.claude, 'falta la llave');
   assert.equal(sin.json.baseDeDatos, 'lista');
 
-  const con = await levantar({ env: { ANTHROPIC_API_KEY: 'sk-ant-llave-de-mentira-para-la-prueba' } });
+  const con = await levantar({ env: { VENDIVA_ANTHROPIC_API_KEY: 'sk-ant-llave-de-mentira-para-la-prueba' } });
   try {
     const r = await con.cliente().get('/api/salud');
     assert.equal(r.json.claude, 'llave puesta');
