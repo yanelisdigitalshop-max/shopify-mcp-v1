@@ -91,13 +91,39 @@ test('el registro explica qué dato está mal', async () => {
   const c = s.cliente();
   const r = await c.post('/api/cuenta/registro', { nombre: 'A', correo: 'sin-arroba', telefono: '12', contrasena: 'corta' });
   assert.equal(r.estado, 400);
-  assert.deepEqual(Object.keys(r.json.error.campos).sort(), ['contrasena', 'correo', 'nombre', 'telefono']);
+  assert.deepEqual(Object.keys(r.json.error.campos).sort(), ['contrasena', 'correo', 'mayorDeEdad', 'nombre', 'telefono']);
   assert.match(r.json.error.campos.contrasena, /al menos 8/);
 
   for (const telefono of ['3055550100', '(305) 555-0100', '+1 305 555 0100', '305-555-0100']) {
     const ok = await s.cliente().post('/api/cuenta/registro', cuentaNueva({ telefono }));
     assert.equal(ok.estado, 201, `teléfono ${telefono}`);
   }
+});
+
+test('sin confirmar que tiene 18 años o más no se crea la cuenta', async () => {
+  const contar = async (correo) => (await s.db.query('select count(*)::int as n from usuarias where correo = $1', [correo])).rows[0].n;
+
+  // Casilla sin marcar, dato ausente y cualquier cosa que no sea un `true` de verdad.
+  for (const valor of [false, undefined, null, 'true', 'si', 1, 18]) {
+    const datos = cuentaNueva({ mayorDeEdad: valor });
+    const c = s.cliente();
+    const r = await c.post('/api/cuenta/registro', datos);
+    assert.equal(r.estado, 400, `mayorDeEdad=${JSON.stringify(valor)}`);
+    assert.equal(r.json.error.codigo, 'DATOS_INVALIDOS');
+    assert.equal(r.json.error.campos.mayorDeEdad, 'Marca la casilla para confirmar que tienes 18 años o más.');
+    assert.equal(await contar(datos.correo), 0, 'no quedó ninguna cuenta guardada');
+    assert.equal((await c.get('/api/estado')).estado, 401, 'tampoco quedó con sesión');
+    assert.equal(c.cookie, null);
+  }
+
+  // Con todo lo demás perfecto y la casilla marcada, sí.
+  s.ponerFecha(new Date('2026-11-10T15:00:00Z'));
+  const datos = cuentaNueva();
+  const ok = await s.cliente().post('/api/cuenta/registro', datos);
+  s.ponerFecha(null);
+  assert.equal(ok.estado, 201, JSON.stringify(ok.json));
+  const { rows } = await s.db.query('select mayor_de_edad_confirmada_en from usuarias where correo = $1', [datos.correo]);
+  assert.equal(new Date(rows[0].mayor_de_edad_confirmada_en).toISOString(), '2026-11-10T15:00:00.000Z', 'queda escrito cuándo lo confirmó');
 });
 
 test('sin sesión no se ve ni se cambia nada', async () => {

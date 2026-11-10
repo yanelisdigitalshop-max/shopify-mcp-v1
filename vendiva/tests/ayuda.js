@@ -87,6 +87,7 @@ export function cuentaNueva(extra = {}) {
     correo: `maria${n}.${Date.now()}@ejemplo.com`,
     telefono: '(305) 555-0100',
     contrasena: 'mi-clave-segura-1',
+    mayorDeEdad: true,
     ...extra,
   };
 }

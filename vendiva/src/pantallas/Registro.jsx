@@ -9,7 +9,7 @@ import {
 } from '../../shared/datos.js';
 import { Logo } from '../componentes/Logo.jsx';
 import { Stepper } from '../componentes/Stepper.jsx';
-import { AvisoError, Boton, Campo, Opcion } from '../componentes/base.jsx';
+import { AvisoError, Boton, Campo, Casilla, Opcion } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { BotonAtras, CampoContrasena, Marco } from './Acceso.jsx';
 
@@ -52,7 +52,7 @@ function Pie({ accion, textoCargando = 'Guardando…', children = 'Continuar', d
 function PasoCuenta({ alEntrar }) {
   const { acciones } = useEstado();
   const registrar = useAccion(acciones.registrar);
-  const [f, setF] = useState({ nombre: '', correo: '', telefono: '', contrasena: '' });
+  const [f, setF] = useState({ nombre: '', correo: '', telefono: '', contrasena: '', mayorDeEdad: false });
   const poner = (campo) => (e) => setF((v) => ({ ...v, [campo]: e.target.value }));
   const errores = registrar.error?.campos ?? {};
 
@@ -64,6 +64,12 @@ function PasoCuenta({ alEntrar }) {
         <Campo etiqueta="Tu correo" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="tucorreo@ejemplo.com" value={f.correo} onChange={poner('correo')} error={errores.correo} required />
         <Campo etiqueta="Tu teléfono" type="tel" inputMode="tel" autoComplete="tel" placeholder="(305) 555-0100" value={f.telefono} onChange={poner('telefono')} error={errores.telefono} required />
         <CampoContrasena etiqueta="Crea una contraseña" nueva value={f.contrasena} onChange={poner('contrasena')} error={errores.contrasena} ayuda="Al menos 8 letras o números. Solo tú la conoces." required />
+        <Casilla
+          etiqueta="Confirmo que tengo 18 años o más"
+          marcada={f.mayorDeEdad}
+          alCambiar={(marcada) => setF((v) => ({ ...v, mayorDeEdad: marcada }))}
+          error={f.mayorDeEdad ? null : errores.mayorDeEdad}
+        />
       </div>
       <Pie accion={registrar} textoCargando="Creando tu cuenta…">Crear mi cuenta</Pie>
       <Boton variante="texto" className="mt-3" onClick={alEntrar}>

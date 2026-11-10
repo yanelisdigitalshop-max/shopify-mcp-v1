@@ -9,7 +9,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Parte | Qué es | Estado |
 |---|---|---|
 | Paso 0 | Conexión con Claude leyendo la llave de variables de entorno | Código listo. **Falta que la dueña ponga su llave** |
-| Parte 1 | Base y cuentas: registro, sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
+| Parte 1 | Base y cuentas: registro (con confirmación de 18 años), sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
 | Parte 2 | Guiones con la IA real | Pendiente |
 | Parte 3 | Buscador y tendencias | Pendiente |
 | Parte 4 | Foto a video, 3 videos y 3 GIFs | Pendiente |
@@ -123,7 +123,8 @@ tests/                 Pruebas del servidor
 - La pestaña Planes se queda como está: su plan, su saldo de créditos y la tabla de los 4 planes.
 - Los créditos del plan se reponen solos el día 1.
 - El modelo de Claude es `claude-opus-5-5` por ahora.
-- **Queda para después, por decisión suya (no construir todavía):** recuperar la contraseña olvidada, y aceptar las políticas y confirmar 18 años al registrarse.
+- Al registrarse hay una casilla obligatoria, «Confirmo que tengo 18 años o más». Sin marcarla el servidor no crea la cuenta, y queda guardado cuándo la marcó.
+- **Queda para después, por decisión suya (no construir todavía):** recuperar la contraseña olvidada y aceptar las políticas al registrarse.
 - El hosting todavía no se elige: por ahora se prueba en local.
 
 ## Datos del negocio

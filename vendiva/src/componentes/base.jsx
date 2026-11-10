@@ -244,6 +244,41 @@ export function Opcion({ activa, alElegir, titulo, detalle, icono: Icono, multip
   );
 }
 
+/** Casilla grande para confirmar algo. Toda la tarjeta se puede tocar. */
+export function Casilla({ etiqueta, marcada, alCambiar, error }) {
+  const id = useId();
+  const borde = error ? 'bg-white ring-2 ring-red-500' : marcada ? 'bg-orange-100 ring-2 ring-orange-700' : 'bg-white ring-1 ring-stone-300';
+  return (
+    <div>
+      <label htmlFor={id} className={`flex cursor-pointer items-center gap-3.5 rounded-2xl p-4 ring-inset transition duration-150 active:scale-[0.99] ${borde}`}>
+        <input
+          id={id}
+          type="checkbox"
+          className="peer sr-only"
+          checked={marcada}
+          onChange={(e) => alCambiar(e.target.checked)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+        />
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 transition peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-orange-700 ${
+            marcada ? 'border-orange-700 bg-orange-700 text-white' : 'border-stone-400 bg-white text-transparent'
+          }`}
+          aria-hidden="true"
+        >
+          <Check className="h-5 w-5" strokeWidth={3} />
+        </span>
+        <span className="text-lg font-semibold leading-snug text-stone-900">{etiqueta}</span>
+      </label>
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-base font-medium text-red-700" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Tarjeta blanca con la sombra en capas de la app. */
 export function Tarjeta({ className = '', children, ...resto }) {
   return (

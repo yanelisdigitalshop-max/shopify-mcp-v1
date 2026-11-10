@@ -59,9 +59,10 @@ export function rutasCuenta({ db, config, reloj }) {
         if (existe.rows.length) throw CORREO_EN_USO();
 
         await t.query(
-          `insert into usuarias (id, correo, contrasena_hash, nombre, telefono, plan, creditos_plan, periodo_creditos)
-           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [id, datos.correo, hash, datos.nombre, datos.telefono, PLAN_INICIAL, creditos, periodo],
+          `insert into usuarias (id, correo, contrasena_hash, nombre, telefono, plan, creditos_plan, periodo_creditos, mayor_de_edad_confirmada_en)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          // La validación ya exigió la casilla de 18 años; se guarda el momento en que la marcó.
+          [id, datos.correo, hash, datos.nombre, datos.telefono, PLAN_INICIAL, creditos, periodo, reloj()],
         );
         await t.query('insert into perfiles (usuaria_id) values ($1)', [id]);
         await anotarMovimiento(t, { usuariaId: id, bolsa: 'plan', cantidad: creditos, motivo: 'alta', periodo });

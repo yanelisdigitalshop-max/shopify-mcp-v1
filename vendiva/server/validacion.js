@@ -34,7 +34,10 @@ const contrasena = z
   .min(8, 'Tu contraseña debe tener al menos 8 letras o números.')
   .max(200, 'La contraseña es muy larga.');
 
-export const esquemaRegistro = z.object({ nombre, correo, telefono, contrasena });
+// Vendiva es para mayores de 18. Solo vale un `true` de verdad: sin la casilla no hay cuenta.
+const mayorDeEdad = z.literal(true, { error: 'Marca la casilla para confirmar que tienes 18 años o más.' });
+
+export const esquemaRegistro = z.object({ nombre, correo, telefono, contrasena, mayorDeEdad });
 
 export const esquemaEntrar = z.object({
   correo,
