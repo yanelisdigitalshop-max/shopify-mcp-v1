@@ -11,7 +11,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Paso 0 | Conexión con Claude leyendo la llave de variables de entorno | Listo. Probado con la llave de la dueña y `claude-opus-5-5` (10 nov 2026) |
 | Parte 1 | Base y cuentas: registro (con confirmación de 18 años), sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
 | Parte 2 | Guiones con la IA real (gratis e ilimitados, en los dos modos), guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos) con aviso antes de crear | Lista para revisar |
-| Parte 3 | Buscador y tendencias | Pendiente |
+| Parte 3 | Buscador de productos (10 búsquedas al mes en Gratis, sin límite en pago) y tendencias de la semana (solo planes de pago) | Lista para revisar |
 | Parte 4 | Foto a video, 3 videos y 3 GIFs | Pendiente |
 | Parte 5 | Voz y Programar | Pendiente |
 | Parte 6 | Textos para 4 redes y Vitrina | Pendiente |
@@ -104,6 +104,7 @@ server/
   servicios/           estado completo de la usuaria, créditos
   ia/claude.js         callClaude y parseClaudeJson
   ia/guionista.js      Lo que se le pide a Claude y la revisión de lo que devuelve
+  ia/descubrir.js      Buscador de productos y tendencias (con búsqueda web y fuentes comprobadas)
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -131,6 +132,15 @@ tests/                 Pruebas del servidor
 - **Costo medido con `claude-haiku-5-5` (11 nov 2026):** cerca de 0,3 centavos de dólar por cada juego de 3 guiones, 0,14 por un guion de en vivo y 0,04 por las 3 respuestas. Con `claude-opus-5-5` eran 12, 6 y 2 centavos. Cada creación guarda el modelo y los tokens usados en la tabla `creaciones`.
 - **Tope de guiones en el plan Gratis:** 100 veces «Crear mis 3 guiones» por mes. Solo cuenta lo entregado y vuelve a cero el día 1, junto con los créditos. Pasado el tope puede seguir creando: cada vez extra cuesta 1 crédito, con el aviso de costo antes y la devolución si la IA falla (decisión de la dueña, 11 nov 2026). Los planes de pago no tienen tope ni pagan nada por los guiones.
 - **Sin construir en esta parte:** ChatGPT como respaldo (no hay llave de OpenAI) y el registro de ventas.
+
+## Parte 3: buscador y tendencias
+
+- **Vendiva no ve el catálogo de TikTok Shop.** El buscador (`POST /api/buscador`) da 5 ideas de tipos de producto: por qué venden, la comisión que conviene buscar, cómo comprobar y pedir la muestra gratis, y frases exactas para buscar en TikTok Shop. La pantalla lo dice tal cual; las instrucciones a la IA le prohíben afirmar que un producto concreto tiene muestra o tal comisión.
+- **Búsquedas:** no gastan créditos. Plan Gratis: 10 al mes, vuelven a cero el día 1 y solo cuentan las entregadas. Planes de pago: sin límite.
+- **Guardar una idea** (`POST /api/buscador/:id/guardar`) la agrega a sus productos con origen «buscador», respetando el tope de 6 del plan Gratis. «Crear su video» lleva a Hoy con ese producto elegido para crear sus 3 guiones.
+- **Tendencias de la semana** (`POST /api/tendencias`): solo planes de pago, uno por semana y por usuaria. Se escriben con una búsqueda web real (`web_search_20250305`); cada tendencia debe citar una página que salió en esa búsqueda y las que no, se descartan. En Gratis no se crea ni se ve: solo un aviso para subir de plan. Al bajar de plan el reporte se oculta, no se borra.
+- **Costo medido con `claude-haiku-5-5` (11 nov 2026):** cerca de 0,1 centavos de dólar por búsqueda y 1,3 centavos por reporte de tendencias (la mayor parte es la búsqueda web).
+- **No hay publicación automática en TikTok.**
 
 ## Decisiones de la dueña sobre la Parte 1
 

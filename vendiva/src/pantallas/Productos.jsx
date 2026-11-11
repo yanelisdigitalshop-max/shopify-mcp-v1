@@ -2,13 +2,14 @@
 // En el plan Gratis caben 6 en total; el servidor es quien lo hace cumplir.
 
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { EmptyState } from '../componentes/EmptyState.jsx';
 import { IlustracionCaja } from '../componentes/Ilustraciones.jsx';
 import { ProductCard } from '../componentes/ProductCard.jsx';
 import { AvisoError, Boton, Hoja, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { FormularioProducto } from './FormularioProducto.jsx';
+import { BuscadorProductos, TendenciasSemana, useVistaInicial } from './Descubrir.jsx';
 
 function Cupo({ usados, maximo }) {
   if (maximo == null) {
@@ -55,7 +56,47 @@ function ConfirmarBorrado({ producto, alCerrar }) {
   );
 }
 
-export function Productos({ irA }) {
+const VISTAS = [
+  { id: 'mis', nombre: 'Mis productos' },
+  { id: 'descubrir', nombre: 'Descubre qué vender' },
+];
+
+export function Productos({ irA, foco }) {
+  const [vista, setVista] = useVistaInicial(foco, 'mis');
+  return (
+    <div>
+      <div role="tablist" aria-label="Productos" className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-stone-200/60 p-1">
+        {VISTAS.map((v) => {
+          const activa = vista === v.id;
+          return (
+            <button
+              key={v.id}
+              type="button"
+              role="tab"
+              aria-selected={activa}
+              onClick={() => setVista(v.id)}
+              className={`min-h-12 rounded-xl px-2 text-base font-semibold leading-tight transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-700 ${
+                activa ? 'bg-white text-stone-900 shadow-sm ring-1 ring-stone-900/5' : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              {v.nombre}
+            </button>
+          );
+        })}
+      </div>
+      {vista === 'mis' ? (
+        <MisProductos irA={irA} verBuscador={() => setVista('descubrir')} />
+      ) : (
+        <div key="descubrir" className="anim-entrar space-y-10">
+          <BuscadorProductos irA={irA} />
+          <TendenciasSemana irA={irA} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MisProductos({ irA, verBuscador }) {
   const { datos } = useEstado();
   const { productos, limites, plan } = datos;
   const [formulario, setFormulario] = useState({ abierta: false, producto: null });
@@ -85,11 +126,16 @@ export function Productos({ irA }) {
           <EmptyState
             ilustracion={IlustracionCaja}
             titulo="Todavía no tienes productos"
-            texto="Agrega el primero con su nombre. En un minuto queda listo para trabajar con él."
+            texto="Agrega el que recibiste de muestra, o busca ideas de qué vender."
             accion={
-              <Boton icono={Plus} onClick={abrirNuevo}>
-                Agregar mi producto
-              </Boton>
+              <div className="space-y-3">
+                <Boton icono={Plus} onClick={abrirNuevo}>
+                  Agregar mi producto
+                </Boton>
+                <Boton variante="secundario" icono={Search} onClick={verBuscador}>
+                  Descubre qué vender
+                </Boton>
+              </div>
             }
           />
         </Tarjeta>

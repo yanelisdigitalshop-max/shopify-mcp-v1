@@ -26,7 +26,20 @@ const GENERADORES = {
 // muchas llamadas pagadas a la IA al mismo tiempo.
 const creando = new Set();
 
-function traducirErrorIA(err, seCobro) {
+/** El mismo candado para todo lo que llama a la IA (buscador y tendencias incluidos). */
+export async function unaALaVez(usuariaId, fn) {
+  if (creando.has(usuariaId)) {
+    throw new ErrorApp(409, 'YA_CREANDO', 'Ya estamos creando algo para ti. Espera a que termine y vuelve a tocar.');
+  }
+  creando.add(usuariaId);
+  try {
+    return await fn();
+  } finally {
+    creando.delete(usuariaId);
+  }
+}
+
+export function traducirErrorIA(err, seCobro) {
   const sinCargo = seCobro ? ' No se gastó ningún crédito.' : '';
   if (!(err instanceof ErrorIA)) {
     return new ErrorApp(503, 'IA_FALLO', `Algo salió mal al crear. Intenta de nuevo.${sinCargo}`);

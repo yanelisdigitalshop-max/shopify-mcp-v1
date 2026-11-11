@@ -39,6 +39,9 @@ export const CREACIONES = {
   respuestas_comentarios: { id: 'respuestas_comentarios', nombre: '3 respuestas para comentarios', costo: COSTOS_CREDITOS.respuestasComentarios },
 };
 
+/** Esencial, Crecimiento y Pro. Tendencias, buscador sin límite y productos sin tope son solo de pago. */
+export const esPlanDePago = (planId) => planId !== 'gratis';
+
 /** El plan Gratis frena cuando el saldo no alcanza. Los planes de pago no frenan: es decisión de la dueña. */
 export const planFrenaEnCero = (planId) => planId === 'gratis';
 

@@ -25,17 +25,20 @@ const leerHash = () => {
 /** La pestaña vive en la dirección (#productos): el botón "atrás" del teléfono funciona. */
 function usePestana() {
   const [pestana, setPestana] = useState(leerHash);
+  // Algo que la pantalla de destino debe enfocar, por ejemplo { productoId } en Hoy.
+  const [foco, setFoco] = useState(null);
   useEffect(() => {
     const alCambiar = () => setPestana(leerHash());
     window.addEventListener('hashchange', alCambiar);
     return () => window.removeEventListener('hashchange', alCambiar);
   }, []);
-  const irA = useCallback((id) => {
+  const irA = useCallback((id, opciones = null) => {
     if (id !== leerHash()) window.location.hash = id;
     setPestana(id);
+    setFoco(opciones ? { ...opciones, vez: Date.now() } : null);
     window.scrollTo({ top: 0 });
   }, []);
-  return [pestana, irA];
+  return [pestana, irA, foco];
 }
 
 function Arrancando() {
@@ -85,7 +88,7 @@ function Invitada({ sesionVencida }) {
 
 function Aplicacion() {
   const { datos } = useEstado();
-  const [pestana, irA] = usePestana();
+  const [pestana, irA, foco] = usePestana();
   const Pantalla = PANTALLAS[pestana];
   const inicial = datos.usuaria.nombre.trim().charAt(0).toUpperCase();
   const enCuenta = pestana === 'cuenta';
@@ -118,7 +121,7 @@ function Aplicacion() {
       </header>
 
       <main key={pestana} className="anim-entrar mx-auto w-full max-w-[900px] px-5 pb-32 pt-6 md:pb-16 md:pt-10">
-        <Pantalla irA={irA} alVolver={() => irA('hoy')} />
+        <Pantalla irA={irA} foco={foco} alVolver={() => irA('hoy')} />
       </main>
 
       <TabBar activa={PESTANAS.some((p) => p.id === pestana) ? pestana : null} alCambiar={irA} />

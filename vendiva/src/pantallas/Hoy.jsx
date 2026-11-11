@@ -124,10 +124,19 @@ function HojaSeguidores({ abierta, alCerrar, actuales, alSubir }) {
   );
 }
 
-export function Hoy({ irA }) {
+export function Hoy({ irA, foco }) {
   const { datos } = useEstado();
   const { usuaria, perfil, nivel, productos, limites } = datos;
-  const [elegido, setElegido] = useState(null);
+  const [elegido, setElegido] = useState(foco?.productoId ?? null);
+
+  // Al llegar con un producto pedido (por ejemplo, "Crear su video" desde el buscador),
+  // se elige ese producto y se baja hasta sus guiones.
+  useEffect(() => {
+    if (!foco?.productoId) return undefined;
+    setElegido(foco.productoId);
+    const t = setTimeout(() => document.getElementById('titulo-guiones')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    return () => clearTimeout(t);
+  }, [foco]);
   const [editarSeguidores, setEditarSeguidores] = useState(false);
   const [agregar, setAgregar] = useState(false);
   const [subio, setSubio] = useState(false);

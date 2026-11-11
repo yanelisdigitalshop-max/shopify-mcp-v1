@@ -70,6 +70,11 @@ export function ProveedorEstado({ children }) {
       editarProducto: (id, cambios) => guardar(api.patch(`/productos/${id}`, cambios)),
       borrarProducto: (id) => guardar(api.del(`/productos/${id}`)),
 
+      // Parte 3: buscador y tendencias.
+      buscar: (nicho) => guardar(api.post('/buscador', { nicho }, { esperaMs: ESPERA_IA_MS })),
+      guardarIdea: (busquedaId, indice) => guardar(api.post(`/buscador/${busquedaId}/guardar`, { indice })),
+      crearTendencias: () => guardar(api.post('/tendencias', {}, { esperaMs: ESPERA_IA_MS })),
+
       // Lo que escribe la IA. Los guiones son gratis; lo demás lleva el costo que ella aceptó en el aviso.
       // costoAceptado solo hace falta para los guiones extra del plan Gratis (después del tope del mes).
       crearGuiones: (productoId, costoAceptado) =>

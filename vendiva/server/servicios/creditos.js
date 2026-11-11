@@ -19,6 +19,18 @@ export function periodoDe(fecha = new Date()) {
   return `${dato('year')}-${dato('month')}`;
 }
 
+/** Semana ISO en la hora de Florida, por ejemplo '2026-W46'. Las tendencias se guardan por semana. */
+export function semanaDe(fecha = new Date()) {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: ZONA_HORARIA, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(fecha);
+  const dato = (t) => Number(p.find((x) => x.type === t).value);
+  const dia = new Date(Date.UTC(dato('year'), dato('month') - 1, dato('day')));
+  const diaSemana = dia.getUTCDay() || 7; // lunes = 1 ... domingo = 7
+  dia.setUTCDate(dia.getUTCDate() + 4 - diaSemana); // el jueves de esa semana decide el año
+  const inicioAno = new Date(Date.UTC(dia.getUTCFullYear(), 0, 1));
+  const numero = Math.ceil(((dia - inicioAno) / 86400000 + 1) / 7);
+  return `${dia.getUTCFullYear()}-W${String(numero).padStart(2, '0')}`;
+}
+
 /** 'AAAA-MM-01' del mes siguiente: el día en que se renuevan. */
 export function proximaRenovacion(periodo) {
   const [a, m] = periodo.split('-').map(Number);
@@ -91,10 +103,10 @@ export async function renovarSiToca(t, usuaria, ahora = new Date()) {
 
   const creditos = PLANES[usuaria.plan].creditosMes;
   await t.query(
-    'update usuarias set creditos_plan = $2, periodo_creditos = $3, guiones_mes = 0, actualizada_en = now() where id = $1',
+    'update usuarias set creditos_plan = $2, periodo_creditos = $3, guiones_mes = 0, busquedas_mes = 0, actualizada_en = now() where id = $1',
     [usuaria.id, creditos, periodo],
   );
   await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'plan', cantidad: creditos, motivo: 'renovacion', periodo });
   // Con el mes nuevo también vuelve a cero la cuenta de guiones gratis.
-  return { ...usuaria, creditos_plan: creditos, periodo_creditos: periodo, guiones_mes: 0 };
+  return { ...usuaria, creditos_plan: creditos, periodo_creditos: periodo, guiones_mes: 0, busquedas_mes: 0 };
 }

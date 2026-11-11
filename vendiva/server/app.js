@@ -11,6 +11,7 @@ import { rutasCuenta } from './rutas/cuenta.js';
 import { rutasPerfil } from './rutas/perfil.js';
 import { rutasProductos } from './rutas/productos.js';
 import { rutasCreaciones } from './rutas/creaciones.js';
+import { rutasDescubrir } from './rutas/descubrir.js';
 import { iaReal } from './ia/guionista.js';
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -122,6 +123,7 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal }) 
   api.use(rutasPerfil(contexto));
   api.use(rutasProductos(contexto));
   api.use(rutasCreaciones(contexto));
+  api.use(rutasDescubrir(contexto));
 
   api.use((_req, _res, next) => next(new ErrorApp(404, 'RUTA_NO_ENCONTRADA', 'Esa dirección no existe.')));
 

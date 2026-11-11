@@ -3,11 +3,11 @@
 
 import crypto from 'node:crypto';
 import { Router } from 'express';
-import { PLANES } from '../../shared/datos.js';
-import { ErrorApp, noEncontrado, sinSesion } from '../errores.js';
+import { noEncontrado } from '../errores.js';
 import { validar, esquemaProductoNuevo, esquemaProductoEditado, esquemaUuid } from '../validacion.js';
 import { exigirSesion } from '../auth/sesiones.js';
 import { anotarHistorial, construirEstado } from '../servicios/estado.js';
+import { comprobarTopeProductos } from '../servicios/productos.js';
 
 const aCentavos = (precio) => (precio == null ? null : Math.round(precio * 100));
 
@@ -27,22 +27,7 @@ export function rutasProductos({ db, reloj }) {
     const id = crypto.randomUUID();
 
     await db.tx(async (t) => {
-      // Se bloquea la fila de la usuaria: dos toques a la vez no pueden colar un séptimo.
-      const usuaria = (await t.query('select plan from usuarias where id = $1 for update', [usuariaId])).rows[0];
-      if (!usuaria) throw sinSesion();
-      const plan = PLANES[usuaria.plan];
-      const total = (await t.query('select count(*)::int as n from productos where usuaria_id = $1', [usuariaId]))
-        .rows[0].n;
-
-      if (plan.maxProductos != null && total >= plan.maxProductos) {
-        throw new ErrorApp(
-          403,
-          'LIMITE_PRODUCTOS',
-          `El plan ${plan.nombre} guarda hasta ${plan.maxProductos} productos y ya tienes ${total}. ` +
-            'Para agregar otro, borra uno que ya no uses o sube de plan.',
-          { datos: { maximo: plan.maxProductos, usados: total } },
-        );
-      }
+      await comprobarTopeProductos(t, usuariaId);
 
       await t.query(
         `insert into productos (id, usuaria_id, nombre, descripcion, precio_centavos, comision_pct, enlace, origen)

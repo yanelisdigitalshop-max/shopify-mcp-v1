@@ -2,9 +2,9 @@
 // El servidor es la fuente de verdad: cada cambio devuelve este mismo objeto.
 
 import crypto from 'node:crypto';
-import { LIMITES_GRATIS, PLANES, nivelPara, planFrenaEnCero } from '../../shared/datos.js';
+import { LIMITES_GRATIS, PLANES, esPlanDePago, nivelPara, planFrenaEnCero } from '../../shared/datos.js';
 import { sinSesion } from '../errores.js';
-import { renovarSiToca, proximaRenovacion } from './creditos.js';
+import { renovarSiToca, proximaRenovacion, semanaDe } from './creditos.js';
 
 export function productoPublico(p) {
   return {
@@ -76,6 +76,32 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
 
     const plan = PLANES[usuaria.plan];
 
+    // Buscador: la última búsqueda, con las ideas que ya guardó como producto.
+    const ultimaBusqueda = (
+      await t.query('select * from busquedas where usuaria_id = $1 order by creado_en desc limit 1', [usuariaId])
+    ).rows[0];
+    const idsProductos = new Set(productos.map((p) => p.id));
+    const buscador = {
+      ultima: ultimaBusqueda
+        ? (() => {
+            const guardados = Object.fromEntries(Object.entries(ultimaBusqueda.guardados ?? {}).filter(([, id]) => idsProductos.has(id)));
+            return { id: ultimaBusqueda.id, nicho: ultimaBusqueda.nicho, ideas: ultimaBusqueda.resultado.ideas, consejo: ultimaBusqueda.resultado.consejo, guardados, creadoEn: ultimaBusqueda.creado_en };
+          })()
+        : null,
+    };
+
+    // Tendencias: solo de pago. En Gratis no se manda ni el reporte (aunque exista de antes).
+    let tendencias = { disponible: false };
+    if (esPlanDePago(usuaria.plan)) {
+      const semana = semanaDe(ahora);
+      const t2 = (await t.query('select * from tendencias where usuaria_id = $1 and semana = $2', [usuariaId, semana])).rows[0];
+      tendencias = {
+        disponible: true,
+        semana,
+        reporte: t2 ? { id: t2.id, semana: t2.semana, resumen: t2.contenido.resumen, tendencias: t2.contenido.tendencias, creadoEn: t2.creado_en } : null,
+      };
+    }
+
     return {
       usuaria: {
         id: usuaria.id,
@@ -105,6 +131,8 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
       },
       productos: productos.map(productoPublico),
       creaciones,
+      buscador,
+      tendencias,
       limites: {
         productosUsados: totalProductos,
         productosMax: plan.maxProductos,
@@ -112,6 +140,9 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
         // Veces que creó "sus 3 guiones" este mes. Solo el plan Gratis tiene tope (null = sin tope).
         guionesUsados: usuaria.guiones_mes,
         guionesMax: planFrenaEnCero(usuaria.plan) ? LIMITES_GRATIS.guionesMes : null,
+        // Búsquedas del buscador este mes. Solo el plan Gratis tiene límite (null = sin límite).
+        busquedasUsadas: usuaria.busquedas_mes,
+        busquedasMax: planFrenaEnCero(usuaria.plan) ? LIMITES_GRATIS.busquedasMes : null,
       },
       historial: historial.map((h) => ({ id: h.id, tipo: h.tipo, detalle: h.detalle, creadoEn: h.creado_en })),
     };
