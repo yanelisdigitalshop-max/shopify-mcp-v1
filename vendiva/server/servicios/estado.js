@@ -50,6 +50,30 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
       )
     ).rows;
 
+    // Lo último que la IA escribió para cada producto, por tipo.
+    const ultimas = (
+      await t.query(
+        `select distinct on (producto_id, tipo) id, producto_id, tipo, contenido, creditos_cobrados, creado_en
+           from creaciones
+          where usuaria_id = $1
+          order by producto_id, tipo, creado_en desc`,
+        [usuariaId],
+      )
+    ).rows;
+    const visibles = new Set(productos.map((p) => p.id));
+    const creaciones = {};
+    for (const c of ultimas) {
+      if (!visibles.has(c.producto_id)) continue;
+      (creaciones[c.producto_id] ??= {})[c.tipo] = {
+        id: c.id,
+        productoId: c.producto_id,
+        tipo: c.tipo,
+        contenido: c.contenido,
+        creditosCobrados: c.creditos_cobrados,
+        creadoEn: c.creado_en,
+      };
+    }
+
     const plan = PLANES[usuaria.plan];
 
     return {
@@ -80,6 +104,7 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
         renuevaEl: proximaRenovacion(usuaria.periodo_creditos),
       },
       productos: productos.map(productoPublico),
+      creaciones,
       limites: {
         productosUsados: totalProductos,
         productosMax: plan.maxProductos,

@@ -24,6 +24,11 @@ function describir({ tipo, detalle }) {
       return `Editaste «${detalle.nombre}»`;
     case 'producto_borrado':
       return `Borraste «${detalle.nombre}»`;
+    case 'creacion': {
+      const que = { guiones: '3 guiones', guion_en_vivo: 'un guion de en vivo', respuestas_comentarios: '3 respuestas para comentarios' }[detalle.tipo];
+      if (!que) return null;
+      return `Creaste ${que} para «${detalle.nombre}»${detalle.creditos ? ` (${detalle.creditos} créditos)` : ''}`;
+    }
     default:
       return null;
   }

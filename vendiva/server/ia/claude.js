@@ -78,7 +78,8 @@ function traducirError(err) {
 }
 
 /**
- * Llama a Claude y devuelve el texto de la respuesta.
+ * Llama a Claude y devuelve el texto junto con el modelo y los tokens usados
+ * (para saber cuánto cuesta cada creación). Es la versión completa de callClaude.
  *
  * @param {Array<{role: 'user'|'assistant', content: string|object[]}>} messages
  * @param {object} [opciones]
@@ -87,9 +88,9 @@ function traducirError(err) {
  * @param {'low'|'medium'|'high'} [opciones.esfuerzo]
  * @param {string} [opciones.modelo]     por defecto ANTHROPIC_MODEL o claude-opus-5-5
  * @param {object} [opciones.cliente]    solo para pruebas: un cliente falso
- * @returns {Promise<string>}
+ * @returns {Promise<{ texto: string, modelo: string, uso: { entrada: number, salida: number } }>}
  */
-export async function callClaude(messages, opciones = {}) {
+export async function llamarClaude(messages, opciones = {}) {
   const {
     system,
     maxTokens = 16000,
@@ -132,10 +133,24 @@ export async function callClaude(messages, opciones = {}) {
     if (respuesta.stop_reason === 'max_tokens') {
       throw new ErrorIA('RESPUESTA_CORTADA', 'La respuesta salió incompleta. Intenta de nuevo.', { reintentable: true });
     }
-    return texto;
+    return {
+      texto,
+      modelo: respuesta.model ?? modelo,
+      uso: { entrada: respuesta.usage?.input_tokens ?? 0, salida: respuesta.usage?.output_tokens ?? 0 },
+    };
   } catch (err) {
     throw traducirError(err);
   }
+}
+
+/**
+ * Llama a Claude y devuelve el texto de la respuesta.
+ * Mismas opciones que llamarClaude.
+ *
+ * @returns {Promise<string>}
+ */
+export async function callClaude(messages, opciones = {}) {
+  return (await llamarClaude(messages, opciones)).texto;
 }
 
 /**

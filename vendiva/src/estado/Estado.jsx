@@ -3,14 +3,14 @@
 // el estado completo. Aquí no hay localStorage ni sessionStorage.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { api } from '../api.js';
+import { api, ESPERA_IA_MS } from '../api.js';
 
 const Contexto = createContext(null);
 
 const INICIAL = {
   fase: 'cargando', // 'cargando' | 'listo' | 'error'
   errorArranque: null,
-  datos: null, // null = sin sesión. Con sesión: { usuaria, perfil, nivel, plan, creditos, productos, limites, historial }
+  datos: null, // null = sin sesión. Con sesión: { usuaria, perfil, nivel, plan, creditos, productos, creaciones, limites, historial }
   sesionVencida: false,
 };
 
@@ -69,6 +69,13 @@ export function ProveedorEstado({ children }) {
       agregarProducto: (producto) => guardar(api.post('/productos', producto)),
       editarProducto: (id, cambios) => guardar(api.patch(`/productos/${id}`, cambios)),
       borrarProducto: (id) => guardar(api.del(`/productos/${id}`)),
+
+      // Lo que escribe la IA. Los guiones son gratis; lo demás lleva el costo que ella aceptó en el aviso.
+      crearGuiones: (productoId) => guardar(api.post(`/productos/${productoId}/guiones`, {}, { esperaMs: ESPERA_IA_MS })),
+      crearEnVivo: (productoId, costoAceptado) =>
+        guardar(api.post(`/productos/${productoId}/guion-en-vivo`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
+      crearRespuestas: (productoId, costoAceptado) =>
+        guardar(api.post(`/productos/${productoId}/respuestas-comentarios`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
     };
   }, []);
 

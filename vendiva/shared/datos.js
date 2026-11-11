@@ -31,6 +31,19 @@ export const COSTOS_CREDITOS = {
   respuestasComentarios: 3, // 3 respuestas para comentarios
 };
 
+// Lo que la IA escribe en la Parte 2 y lo que cuesta cada cosa.
+export const CREACIONES = {
+  guiones: { id: 'guiones', nombre: 'Tus 3 guiones', costo: COSTOS_CREDITOS.guiones },
+  guion_en_vivo: { id: 'guion_en_vivo', nombre: 'Guion completo para un en vivo', costo: COSTOS_CREDITOS.guionEnVivo },
+  respuestas_comentarios: { id: 'respuestas_comentarios', nombre: '3 respuestas para comentarios', costo: COSTOS_CREDITOS.respuestasComentarios },
+};
+
+/** El plan Gratis frena cuando el saldo no alcanza. Los planes de pago no frenan: es decisión de la dueña. */
+export const planFrenaEnCero = (planId) => planId === 'gratis';
+
+// TikTok pide 1.000 seguidores para el programa de afiliadas (el carrito) y para los en vivo.
+export const SEGUIDORES_PARA_AFILIADA = 1000;
+
 // Paquetes de créditos sueltos: no vencen.
 export const PAQUETES_CREDITOS = [
   { id: 'chico', nombre: 'Chico', creditos: 100, precio: 9 },

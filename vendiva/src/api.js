@@ -3,6 +3,8 @@
 // código de la página no puede leer, y los datos viven en la base del servidor.
 
 const ESPERA_MAXIMA_MS = 20000;
+// La IA tarda más en escribir que una petición normal.
+export const ESPERA_IA_MS = 120000;
 
 export class ErrorApi extends Error {
   constructor({ codigo, mensaje, campos = null, datos = null, estado = 0, reintentable = false }) {
@@ -17,9 +19,9 @@ export class ErrorApi extends Error {
   }
 }
 
-async function pedir(metodo, ruta, cuerpo) {
+async function pedir(metodo, ruta, cuerpo, { esperaMs = ESPERA_MAXIMA_MS } = {}) {
   const control = new AbortController();
-  const reloj = setTimeout(() => control.abort(), ESPERA_MAXIMA_MS);
+  const reloj = setTimeout(() => control.abort(), esperaMs);
   let respuesta;
   try {
     respuesta = await fetch(`/api${ruta}`, {
@@ -66,7 +68,7 @@ async function pedir(metodo, ruta, cuerpo) {
 
 export const api = {
   get: (ruta) => pedir('GET', ruta),
-  post: (ruta, cuerpo = {}) => pedir('POST', ruta, cuerpo),
+  post: (ruta, cuerpo = {}, opciones) => pedir('POST', ruta, cuerpo, opciones),
   patch: (ruta, cuerpo = {}) => pedir('PATCH', ruta, cuerpo),
   del: (ruta) => pedir('DELETE', ruta),
 };

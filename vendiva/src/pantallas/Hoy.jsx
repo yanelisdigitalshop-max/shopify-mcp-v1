@@ -1,13 +1,14 @@
-// Pantalla Hoy: su nivel, el producto del día y (desde la Parte 2) sus guiones.
+// Pantalla Hoy: su nivel, el producto del día y lo que la IA escribe para él.
 
 import { useEffect, useState } from 'react';
 import { ArrowRight, Plus, TrendingUp } from 'lucide-react';
-import { MODOS_GRABACION, NIVELES, formatoNumero, nivelPara } from '../../shared/datos.js';
+import { NIVELES, formatoNumero, nivelPara } from '../../shared/datos.js';
 import { EmptyState } from '../componentes/EmptyState.jsx';
-import { IlustracionCaja, IlustracionGuion } from '../componentes/Ilustraciones.jsx';
+import { IlustracionCaja } from '../componentes/Ilustraciones.jsx';
 import { ProductCard } from '../componentes/ProductCard.jsx';
-import { AunNo, AvisoError, Boton, Campo, Hoja, Tarjeta } from '../componentes/base.jsx';
+import { AvisoError, Boton, Campo, Hoja, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
+import { SeccionExtras, SeccionGuiones } from './Creaciones.jsx';
 import { FormularioProducto } from './FormularioProducto.jsx';
 import { leerEntero } from './Registro.jsx';
 
@@ -125,7 +126,7 @@ function HojaSeguidores({ abierta, alCerrar, actuales, alSubir }) {
 
 export function Hoy({ irA }) {
   const { datos } = useEstado();
-  const { usuaria, perfil, nivel, productos, limites, plan } = datos;
+  const { usuaria, perfil, nivel, productos, limites } = datos;
   const [elegido, setElegido] = useState(null);
   const [editarSeguidores, setEditarSeguidores] = useState(false);
   const [agregar, setAgregar] = useState(false);
@@ -139,7 +140,6 @@ export function Hoy({ irA }) {
   }, [subio]);
 
   const productoDeHoy = productos.find((p) => p.id === elegido) ?? productos[0] ?? null;
-  const modo = MODOS_GRABACION.find((m) => m.id === perfil.modoGrabacion);
   const primerNombre = usuaria.nombre.trim().split(/\s+/)[0];
   const visibles = productos.slice(0, 3);
 
@@ -209,34 +209,8 @@ export function Hoy({ irA }) {
           )}
         </section>
 
-        <section aria-labelledby="titulo-guiones">
-          <h2 id="titulo-guiones" className="text-xl font-bold tracking-tight text-stone-900">
-            Tus 3 guiones de hoy
-          </h2>
-          <Tarjeta className="mt-3 p-5">
-            <div className="flex items-center gap-4">
-              <IlustracionGuion className="h-16 w-auto shrink-0" />
-              <AunNo>Se activa en la Parte 2, con la IA</AunNo>
-            </div>
-            <p className="mt-4 text-base leading-relaxed text-stone-700">
-              {productoDeHoy ? (
-                <>
-                  Aquí vas a recibir cada día 3 guiones para <strong className="font-semibold text-stone-900">{productoDeHoy.nombre}</strong>
-                  {modo && (
-                    <>
-                      {' '}
-                      en modo <strong className="font-semibold text-stone-900">{modo.nombre.toLowerCase()}</strong>
-                    </>
-                  )}
-                  : gancho de 3 segundos, guion con tiempos, texto en pantalla, caption con hashtags y la mejor hora para publicar.
-                </>
-              ) : (
-                'Cuando tengas un producto, aquí vas a recibir cada día 3 guiones listos para grabar.'
-              )}
-            </p>
-            <p className="mt-2 text-base text-stone-600">Los guiones son ilimitados y no gastan créditos, en el plan {plan.nombre} y en todos.</p>
-          </Tarjeta>
-        </section>
+        <SeccionGuiones producto={productoDeHoy} modoPreferido={perfil.modoGrabacion} />
+        <SeccionExtras producto={productoDeHoy} irA={irA} />
       </div>
 
       <HojaSeguidores abierta={editarSeguidores} alCerrar={() => setEditarSeguidores(false)} actuales={perfil.seguidores} alSubir={() => setSubio(true)} />

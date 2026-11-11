@@ -10,7 +10,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 |---|---|---|
 | Paso 0 | Conexión con Claude leyendo la llave de variables de entorno | Listo. Probado con la llave de la dueña y `claude-opus-5-5` (10 nov 2026) |
 | Parte 1 | Base y cuentas: registro (con confirmación de 18 años), sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
-| Parte 2 | Guiones con la IA real | Pendiente |
+| Parte 2 | Guiones con la IA real (gratis e ilimitados, en los dos modos), guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos) con aviso antes de crear | Lista para revisar |
 | Parte 3 | Buscador y tendencias | Pendiente |
 | Parte 4 | Foto a video, 3 videos y 3 GIFs | Pendiente |
 | Parte 5 | Voz y Programar | Pendiente |
@@ -103,6 +103,7 @@ server/
   rutas/               cuenta, perfil, productos
   servicios/           estado completo de la usuaria, créditos
   ia/claude.js         callClaude y parseClaudeJson
+  ia/guionista.js      Lo que se le pide a Claude y la revisión de lo que devuelve
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -119,6 +120,15 @@ tests/                 Pruebas del servidor
 - **Nada en el navegador.** Ni `localStorage` ni `sessionStorage`: todo persiste en la base del servidor.
 - **Nombre.** La app se llama Vendiva. Una prueba revisa que el nombre viejo no aparezca en ningún archivo.
 - **Honestidad.** Lo que todavía no existe se marca como «Todavía no está construido». Nada de reseñas, ventas ni calificaciones inventadas.
+
+## Parte 2: lo que escribe la IA
+
+- **Guiones:** `POST /api/productos/:id/guiones`. Tres guiones, cada uno con cámara y sin cámara. No gastan créditos, no tienen tope y no llevan aviso. Se escriben los tres a la vez para que la espera sea de unos 15 segundos.
+- **Guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos):** el servidor solo crea si llega el costo que ella aceptó en el aviso (`costoAceptado`).
+- **Créditos:** primero se gastan los del plan y luego los de paquete. El plan Gratis frena si no alcanza (sin llamar a la IA). Los planes de pago no frenan: se descuenta hasta cero y se crea igual. Si la IA falla, se devuelve lo cobrado.
+- **Honestidad:** las instrucciones a la IA (`server/ia/guionista.js`) prohíben inventar datos del producto y prometer resultados, ventas o seguidores. Sin avatar; en el modo sin cámara su cara no aparece.
+- **Costo medido con `claude-opus-5-5` (10 nov 2026):** unos 12 centavos de dólar por cada juego de 3 guiones, 6 por un guion de en vivo y 2 por las 3 respuestas. Cada creación guarda el modelo y los tokens usados en la tabla `creaciones`.
+- **Sin construir en esta parte:** ChatGPT como respaldo (no hay llave de OpenAI) y el registro de ventas.
 
 ## Decisiones de la dueña sobre la Parte 1
 

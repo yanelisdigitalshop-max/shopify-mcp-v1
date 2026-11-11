@@ -1,10 +1,12 @@
 // Créditos: dos bolsas.
 //   - del plan: llegan solos el día 1 de cada mes (el saldo se repone, no se acumula).
 //   - de paquete: se compran aparte y no vencen.
-// En la Parte 1 solo existen el abono de alta y la renovación; todavía nada gasta.
+// Entran por el alta y la renovación; salen al crear lo que cuesta créditos
+// (guion de en vivo, respuestas a comentarios). Los guiones nunca gastan.
 
 import crypto from 'node:crypto';
-import { PLANES, ZONA_HORARIA } from '../../shared/datos.js';
+import { PLANES, ZONA_HORARIA, planFrenaEnCero } from '../../shared/datos.js';
+import { ErrorApp } from '../errores.js';
 
 /** 'AAAA-MM' en la hora de Florida. */
 export function periodoDe(fecha = new Date()) {
@@ -24,11 +26,58 @@ export function proximaRenovacion(periodo) {
   return `${siguiente[0]}-${String(siguiente[1]).padStart(2, '0')}-01`;
 }
 
-export async function anotarMovimiento(t, { usuariaId, bolsa, cantidad, motivo, periodo = null }) {
+export async function anotarMovimiento(t, { usuariaId, bolsa, cantidad, motivo, periodo = null, referencia = null }) {
   await t.query(
-    'insert into movimientos_creditos (id, usuaria_id, bolsa, cantidad, motivo, periodo) values ($1, $2, $3, $4, $5, $6)',
-    [crypto.randomUUID(), usuariaId, bolsa, cantidad, motivo, periodo],
+    'insert into movimientos_creditos (id, usuaria_id, bolsa, cantidad, motivo, periodo, referencia) values ($1, $2, $3, $4, $5, $6, $7)',
+    [crypto.randomUUID(), usuariaId, bolsa, cantidad, motivo, periodo, referencia],
   );
+}
+
+/**
+ * Cobra una creación. Se llama con la fila de la usuaria bloqueada y ya renovada.
+ *
+ * - Primero se gastan los créditos del plan (se reponen el día 1) y después los de paquete (no vencen).
+ * - Plan Gratis: si el saldo no alcanza, frena y no cobra nada.
+ * - Planes de pago: no frenan. Se descuenta lo que haya, hasta cero, y la creación sale igual.
+ *
+ * @returns {{ delPlan: number, delPaquete: number, total: number }} lo cobrado de cada bolsa
+ */
+export async function cobrar(t, usuaria, { costo, motivo, referencia }) {
+  const saldo = usuaria.creditos_plan + usuaria.creditos_paquete;
+
+  if (saldo < costo && planFrenaEnCero(usuaria.plan)) {
+    throw new ErrorApp(
+      402,
+      'CREDITOS_INSUFICIENTES',
+      `Ya se te terminó lo gratis de este mes. Esto cuesta ${costo} créditos y te quedan ${saldo}.`,
+      { datos: { costo, saldo, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
+    );
+  }
+
+  const total = Math.min(costo, saldo);
+  const delPlan = Math.min(usuaria.creditos_plan, total);
+  const delPaquete = total - delPlan;
+
+  if (total > 0) {
+    await t.query(
+      'update usuarias set creditos_plan = creditos_plan - $2, creditos_paquete = creditos_paquete - $3, actualizada_en = now() where id = $1',
+      [usuaria.id, delPlan, delPaquete],
+    );
+    if (delPlan > 0) await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'plan', cantidad: -delPlan, motivo, periodo: usuaria.periodo_creditos, referencia });
+    if (delPaquete > 0) await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'paquete', cantidad: -delPaquete, motivo, referencia });
+  }
+  return { delPlan, delPaquete, total };
+}
+
+/** Devuelve exactamente lo cobrado, a la misma bolsa, cuando la creación no se pudo entregar. */
+export async function devolver(t, usuariaId, cobro, { referencia }) {
+  if (!cobro || cobro.total === 0) return;
+  await t.query(
+    'update usuarias set creditos_plan = creditos_plan + $2, creditos_paquete = creditos_paquete + $3, actualizada_en = now() where id = $1',
+    [usuariaId, cobro.delPlan, cobro.delPaquete],
+  );
+  if (cobro.delPlan > 0) await anotarMovimiento(t, { usuariaId, bolsa: 'plan', cantidad: cobro.delPlan, motivo: 'devolucion', referencia });
+  if (cobro.delPaquete > 0) await anotarMovimiento(t, { usuariaId, bolsa: 'paquete', cantidad: cobro.delPaquete, motivo: 'devolucion', referencia });
 }
 
 /**
