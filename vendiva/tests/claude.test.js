@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Anthropic from '@anthropic-ai/sdk';
-import { callClaude, parseClaudeJson, claudeConfigurado, ErrorIA } from '../server/ia/claude.js';
+import { callClaude, parseClaudeJson, claudeConfigurado, ErrorIA, MODELO_POR_DEFECTO } from '../server/ia/claude.js';
 import { leerConfig } from '../server/config.js';
 
 const respuesta = (texto, extra = {}) => ({
@@ -53,9 +53,26 @@ test('parseClaudeJson: si no hay JSON, avisa con un error reintentable (no revie
   }
 });
 
-test('callClaude devuelve el texto y usa el modelo por defecto con respaldo', async () => {
+test('el modelo por defecto es el Haiku más reciente', async () => {
+  const guardado = process.env.ANTHROPIC_MODEL;
+  delete process.env.ANTHROPIC_MODEL;
+  try {
+    assert.equal(MODELO_POR_DEFECTO, 'claude-haiku-5-5');
+    assert.equal(leerConfig({}).anthropic.modelo, 'claude-haiku-5-5');
+    const cliente = clienteFalso(respuesta('  Hola, soy Claude.  '));
+    assert.equal(await callClaude([{ role: 'user', content: 'Hola' }], { cliente }), 'Hola, soy Claude.');
+    assert.equal(cliente.llamadas.beta.length, 0);
+    const [p] = cliente.llamadas.normal;
+    assert.equal(p.model, 'claude-haiku-5-5');
+    assert.ok(!('fallbacks' in p) && !('betas' in p) && !('temperature' in p) && !('thinking' in p));
+  } finally {
+    if (guardado !== undefined) process.env.ANTHROPIC_MODEL = guardado;
+  }
+});
+
+test('con un modelo Opus se manda el respaldo del servidor de Anthropic', async () => {
   const cliente = clienteFalso(respuesta('  Hola, soy Claude.  '));
-  const texto = await callClaude([{ role: 'user', content: 'Hola' }], { cliente, system: 'Eres la agente de Vendiva.' });
+  const texto = await callClaude([{ role: 'user', content: 'Hola' }], { cliente, modelo: 'claude-opus-5-5', system: 'Eres la agente de Vendiva.' });
   assert.equal(texto, 'Hola, soy Claude.');
   assert.equal(cliente.llamadas.normal.length, 0);
   const [p] = cliente.llamadas.beta;

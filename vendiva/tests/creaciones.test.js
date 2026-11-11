@@ -65,7 +65,7 @@ test('guiones: de un toque, 3 guiones en los dos modos, y no gastan créditos', 
   assert.equal(e.creaciones[productoId].guiones.contenido.guiones.length, 3);
 });
 
-test('guiones: ilimitados. Diez veces seguidas y con el saldo en cero siguen saliendo gratis', async () => {
+test('guiones: diez veces seguidas y con el saldo en cero siguen saliendo gratis', async () => {
   const { c, usuariaId, productoId } = await conProducto();
   await ponerSaldo(usuariaId, 0, 0);
   for (let i = 0; i < 10; i += 1) {
@@ -75,6 +75,80 @@ test('guiones: ilimitados. Diez veces seguidas y con el saldo en cero siguen sal
   assert.equal((await saldo(c)).total, 0);
   assert.deepEqual(await movimientos(usuariaId), []);
   assert.equal(await cuantas(usuariaId), 10);
+});
+
+test('plan Gratis: hasta 100 veces "Crear mis 3 guiones" por mes; la 101 se detiene sin llamar a la IA', async () => {
+  const { c, usuariaId, productoId } = await conProducto();
+  let e = (await c.get('/api/estado')).json.estado;
+  assert.deepEqual({ usados: e.limites.guionesUsados, max: e.limites.guionesMax }, { usados: 0, max: 100 });
+
+  await s.db.query('update usuarias set guiones_mes = 98 where id = $1', [usuariaId]);
+  for (const esperado of [99, 100]) {
+    const r = await c.post(`/api/productos/${productoId}/guiones`);
+    assert.equal(r.estado, 201, `vez ${esperado}`);
+    assert.equal(r.json.estado.limites.guionesUsados, esperado);
+  }
+
+  ia.llamadas.length = 0;
+  const frenada = await c.post(`/api/productos/${productoId}/guiones`);
+  assert.equal(frenada.estado, 402);
+  assert.equal(frenada.json.error.codigo, 'LIMITE_GUIONES');
+  assert.match(frenada.json.error.mensaje, /^Llegaste al límite de guiones gratis de este mes/);
+  assert.deepEqual({ usados: frenada.json.error.datos.usados, maximo: frenada.json.error.datos.maximo }, { usados: 100, maximo: 100 });
+  assert.equal(ia.llamadas.length, 0, 'la IA no se llamó');
+  assert.equal(await cuantas(usuariaId), 2, 'no se guardó nada nuevo');
+  e = (await c.get('/api/estado')).json.estado;
+  assert.equal(e.limites.guionesUsados, 100);
+  assert.equal(e.creditos.total, 30, 'los guiones siguen sin costar créditos');
+  assert.deepEqual(await movimientos(usuariaId), []);
+
+  // El tope es solo de los guiones: en vivo y respuestas siguen saliendo por sus créditos.
+  assert.equal((await c.post(`/api/productos/${productoId}/guion-en-vivo`, { costoAceptado: 10 })).estado, 201);
+  assert.equal((await c.post(`/api/productos/${productoId}/respuestas-comentarios`, { costoAceptado: 3 })).estado, 201);
+  assert.equal((await c.get('/api/estado')).json.estado.creditos.total, 17);
+
+  // Borrar el producto no devuelve intentos.
+  await c.del(`/api/productos/${productoId}`);
+  const otro = await c.post('/api/productos', { nombre: 'Otro producto' });
+  assert.equal((await c.post(`/api/productos/${otro.json.productoId}/guiones`)).estado, 402);
+});
+
+test('el tope de guiones solo cuenta lo entregado y se reinicia el día 1', async () => {
+  s.ponerFecha(new Date('2026-11-20T15:00:00Z'));
+  try {
+    const { c, usuariaId, productoId } = await conProducto();
+    await s.db.query('update usuarias set guiones_mes = 99 where id = $1', [usuariaId]);
+
+    // Si la IA falla, ese intento no cuenta.
+    comportamiento.responder = () => new ErrorIA('IA_OCUPADA', 'Ocupada.', { reintentable: true });
+    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 503);
+    assert.equal((await c.get('/api/estado')).json.estado.limites.guionesUsados, 99);
+    comportamiento.responder = undefined;
+
+    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 201);
+    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 402);
+
+    s.ponerFecha(new Date('2026-11-30T20:00:00Z'));
+    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 402, 'mismo mes: sigue en el tope');
+
+    s.ponerFecha(new Date('2026-12-01T14:00:00Z'));
+    const r = await c.post(`/api/productos/${productoId}/guiones`);
+    assert.equal(r.estado, 201, 'el día 1 vuelve a empezar');
+    assert.equal(r.json.estado.limites.guionesUsados, 1);
+    assert.equal(r.json.estado.creditos.periodo, '2026-12');
+  } finally {
+    s.ponerFecha(null);
+  }
+});
+
+test('los planes de pago no tienen tope de guiones', async () => {
+  for (const plan of ['esencial', 'crecimiento', 'pro']) {
+    const { c, usuariaId, productoId } = await conProducto();
+    await s.db.query('update usuarias set plan = $2, guiones_mes = 500 where id = $1', [usuariaId, plan]);
+    const r = await c.post(`/api/productos/${productoId}/guiones`);
+    assert.equal(r.estado, 201, plan);
+    assert.equal(r.json.estado.limites.guionesMax, null);
+  }
 });
 
 test('guiones: la IA recibe los datos reales del producto y de ella, sin avatar', async () => {

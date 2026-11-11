@@ -85,7 +85,7 @@ Variables de entorno (ver `.env.example`):
 | `DATABASE_URL` | PostgreSQL donde viven las cuentas y los datos | Sí en producción. Sin ella el servidor no arranca |
 | `VENDIVA_ANTHROPIC_API_KEY` | Llave de Claude (Paso 0). También vale `ANTHROPIC_API_KEY` | Desde la Parte 2 |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
-| `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-opus-5-5` | No |
+| `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-haiku-5-5` | No |
 | `PORT` | Puerto. Por defecto 3000 | No |
 
 Las tablas se crean y actualizan solas al arrancar (`server/db/migraciones/`). También hay un `Dockerfile` listo para cualquier hosting que acepte contenedores.
@@ -123,18 +123,20 @@ tests/                 Pruebas del servidor
 
 ## Parte 2: lo que escribe la IA
 
-- **Guiones:** `POST /api/productos/:id/guiones`. Tres guiones, cada uno con cámara y sin cámara. No gastan créditos, no tienen tope y no llevan aviso. Se escriben los tres a la vez para que la espera sea de unos 15 segundos.
+- **Guiones:** `POST /api/productos/:id/guiones`. Tres guiones, cada uno con cámara y sin cámara. No gastan créditos y no llevan aviso. Se escriben los tres a la vez para que la espera sea de unos 15 segundos.
 - **Guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos):** el servidor solo crea si llega el costo que ella aceptó en el aviso (`costoAceptado`).
 - **Créditos:** primero se gastan los del plan y luego los de paquete. El plan Gratis frena si no alcanza (sin llamar a la IA). Los planes de pago no frenan: se descuenta hasta cero y se crea igual. Si la IA falla, se devuelve lo cobrado.
 - **Honestidad:** las instrucciones a la IA (`server/ia/guionista.js`) prohíben inventar datos del producto y prometer resultados, ventas o seguidores. Sin avatar; en el modo sin cámara su cara no aparece.
-- **Costo medido con `claude-opus-5-5` (10 nov 2026):** unos 12 centavos de dólar por cada juego de 3 guiones, 6 por un guion de en vivo y 2 por las 3 respuestas. Cada creación guarda el modelo y los tokens usados en la tabla `creaciones`.
+- **Modelo:** `claude-haiku-5-5`, el Haiku más reciente, para las tres creaciones (decisión de la dueña, 11 nov 2026).
+- **Costo medido con `claude-haiku-5-5` (11 nov 2026):** cerca de 0,3 centavos de dólar por cada juego de 3 guiones, 0,14 por un guion de en vivo y 0,04 por las 3 respuestas. Con `claude-opus-5-5` eran 12, 6 y 2 centavos. Cada creación guarda el modelo y los tokens usados en la tabla `creaciones`.
+- **Tope de guiones en el plan Gratis:** 100 veces «Crear mis 3 guiones» por mes. Solo cuenta lo entregado y vuelve a cero el día 1, junto con los créditos. Los planes de pago no tienen tope.
 - **Sin construir en esta parte:** ChatGPT como respaldo (no hay llave de OpenAI) y el registro de ventas.
 
 ## Decisiones de la dueña sobre la Parte 1
 
 - La pestaña Planes se queda como está: su plan, su saldo de créditos y la tabla de los 4 planes.
 - Los créditos del plan se reponen solos el día 1.
-- El modelo de Claude es `claude-opus-5-5` por ahora.
+- El modelo de Claude fue `claude-opus-5-5` hasta el 11 de noviembre de 2026; desde entonces es `claude-haiku-5-5`.
 - Al registrarse hay una casilla obligatoria, «Confirmo que tengo 18 años o más». Sin marcarla el servidor no crea la cuenta, y queda guardado cuándo la marcó.
 - **Queda para después, por decisión suya (no construir todavía):** recuperar la contraseña olvidada y aceptar las políticas al registrarse.
 - El hosting todavía no se elige: por ahora se prueba en local.

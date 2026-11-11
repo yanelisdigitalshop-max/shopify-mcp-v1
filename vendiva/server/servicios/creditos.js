@@ -91,9 +91,10 @@ export async function renovarSiToca(t, usuaria, ahora = new Date()) {
 
   const creditos = PLANES[usuaria.plan].creditosMes;
   await t.query(
-    'update usuarias set creditos_plan = $2, periodo_creditos = $3, actualizada_en = now() where id = $1',
+    'update usuarias set creditos_plan = $2, periodo_creditos = $3, guiones_mes = 0, actualizada_en = now() where id = $1',
     [usuaria.id, creditos, periodo],
   );
   await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'plan', cantidad: creditos, motivo: 'renovacion', periodo });
-  return { ...usuaria, creditos_plan: creditos, periodo_creditos: periodo };
+  // Con el mes nuevo también vuelve a cero la cuenta de guiones gratis.
+  return { ...usuaria, creditos_plan: creditos, periodo_creditos: periodo, guiones_mes: 0 };
 }

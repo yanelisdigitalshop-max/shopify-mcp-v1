@@ -17,7 +17,7 @@ export const GUION = {
     { tiempo: '25-30 s', seVe: 'Dejas el cepillo en la mesa.', seEscucha: 'Sígueme para más.', textoEnPantalla: 'Sígueme' },
   ],
   caption: 'Probé este cepillo y así se ve.',
-  hashtags: ['#frizz', 'cabello rizado', '#frizz'],
+  hashtags: ['#frizz', 'cabello rizado', '#frizz', '#de4a6', 'de 4 a 6 hashtags reales sobre este producto y su nicho, cada uno empezando con #'],
   mejorHora: { hora: '7:30 p. m.', motivo: 'De noche mucha gente revisa el teléfono.' },
 };
 

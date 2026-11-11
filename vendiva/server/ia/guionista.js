@@ -85,7 +85,8 @@ const hashtags = z
     ...new Set(
       v
         .map((h) => `#${h.replace(/[#\s]/g, '')}`)
-        .filter((h) => h.length > 1 && h.length <= 40),
+        // Fuera lo que no es un hashtag de verdad (por ejemplo, una instrucción copiada tal cual).
+        .filter((h) => h.length > 2 && h.length <= 30 && !/^#de\d/i.test(h)),
     ),
   ].slice(0, 8))
   .pipe(z.array(z.string()).min(1));
@@ -204,7 +205,7 @@ Devuelve este JSON:
     { "tiempo": "0-3 s", "seVe": "lo que hacen sus manos con el producto, en primer plano", "seEscucha": "lo que dice su voz encima", "textoEnPantalla": "texto corto para poner encima, o vacío" }
   ],
   "caption": "texto para publicar, sin hashtags",
-  "hashtags": ["#de4a6"],
+  "hashtags": ["de 4 a 6 hashtags reales sobre este producto y su nicho, cada uno empezando con #"],
   "mejorHora": { "hora": "7:30 p. m.", "motivo": "por qué esa hora, en una frase" }
 }`;
 

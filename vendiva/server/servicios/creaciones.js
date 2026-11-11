@@ -9,11 +9,11 @@
 // Así nunca se entrega algo sin cobrar ni se cobra algo que no se entregó.
 
 import crypto from 'node:crypto';
-import { CREACIONES } from '../../shared/datos.js';
+import { CREACIONES, LIMITES_GRATIS, planFrenaEnCero } from '../../shared/datos.js';
 import { ErrorApp, noEncontrado, sinSesion } from '../errores.js';
 import { ErrorIA } from '../ia/claude.js';
 import { generarEnVivo, generarGuiones, generarRespuestas } from '../ia/guionista.js';
-import { cobrar, devolver, renovarSiToca } from './creditos.js';
+import { cobrar, devolver, proximaRenovacion, renovarSiToca } from './creditos.js';
 import { anotarHistorial } from './estado.js';
 
 const GENERADORES = {
@@ -83,6 +83,15 @@ export async function crear({ db, ia, reloj, usuariaId, productoId, tipo, costoA
 
       let extra = {};
       if (tipo === 'guiones') {
+        // Plan Gratis: los guiones no gastan créditos, pero tienen un tope por mes.
+        if (planFrenaEnCero(usuaria.plan) && usuaria.guiones_mes >= LIMITES_GRATIS.guionesMes) {
+          throw new ErrorApp(
+            402,
+            'LIMITE_GUIONES',
+            `Llegaste al límite de guiones gratis de este mes: ${LIMITES_GRATIS.guionesMes} veces. El día 1 vuelve a empezar.`,
+            { datos: { usados: usuaria.guiones_mes, maximo: LIMITES_GRATIS.guionesMes, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
+          );
+        }
         const anteriores = (
           await t.query("select contenido from creaciones where producto_id = $1 and tipo = 'guiones' order by creado_en desc limit 3", [productoId])
         ).rows;
@@ -117,6 +126,8 @@ export async function crear({ db, ia, reloj, usuariaId, productoId, tipo, costoA
         [id, usuariaId, productoId, tipo, JSON.stringify(resultado.contenido), cobro?.total ?? 0, resultado.modelo, resultado.uso.entrada, resultado.uso.salida],
       );
       await anotarHistorial(t, usuariaId, 'creacion', { tipo, productoId, nombre: pedido.producto.nombre, creditos: cobro?.total ?? 0 });
+      // Solo cuenta para el tope lo que de verdad se entregó.
+      if (tipo === 'guiones') await t.query('update usuarias set guiones_mes = guiones_mes + 1 where id = $1', [usuariaId]);
       return rows[0];
     });
     cobro = null; // entregado: ya no hay nada que devolver

@@ -28,7 +28,13 @@ function cuando(iso) {
 
 // ── Los 3 guiones ──────────────────────────────────────────────────────────────
 
-export function SeccionGuiones({ producto, modoPreferido }) {
+/** '2026-12-01' -> '1 de diciembre' */
+function fechaLarga(iso) {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long' }).format(new Date(a, m - 1, d));
+}
+
+export function SeccionGuiones({ producto, modoPreferido, irA }) {
   const { datos, acciones } = useEstado();
   const [enCurso, setEnCurso] = useState(null); // id del producto para el que se está creando
   const [modo, setModo] = useState(modoPreferido === 'con_camara' ? 'conCamara' : 'sinCamara');
@@ -43,7 +49,33 @@ export function SeccionGuiones({ producto, modoPreferido }) {
 
   const creacion = producto ? datos.creaciones[producto.id]?.guiones : null;
   const creandoEste = crear.cargando && enCurso === producto?.id;
-  const errorDeEste = !crear.cargando && crear.error;
+  const { guionesUsados, guionesMax } = datos.limites;
+  // Plan Gratis: tope de veces por mes. Se muestra el aviso al llegar, o si el servidor frenó.
+  const enElTope = (guionesMax != null && guionesUsados >= guionesMax) || (!crear.cargando && crear.error?.codigo === 'LIMITE_GUIONES');
+  const errorDeEste = !crear.cargando && crear.error && crear.error.codigo !== 'LIMITE_GUIONES';
+  const pie =
+    guionesMax == null ? (
+      <p className="mt-2 text-center text-base text-stone-600">Gratis e ilimitados. No gastan créditos.</p>
+    ) : (
+      <p className="mt-2 text-center text-base text-stone-600">
+        Gratis: no gastan créditos. Llevas {formatoNumero(guionesUsados)} de {formatoNumero(guionesMax)} este mes.
+      </p>
+    );
+  const tope = (
+    <div className="anim-entrar mt-4 rounded-3xl bg-amber-100 p-5 ring-1 ring-inset ring-amber-300/70" role="status">
+      <h3 className="text-lg font-bold text-amber-950">Llegaste al límite de guiones gratis de este mes</h3>
+      <p className="mt-1 text-base leading-snug text-amber-950/85">
+        El plan Gratis incluye {formatoNumero(guionesMax ?? 100)} veces al mes y ya las usaste. El {fechaLarga(datos.creditos.renuevaEl)} vuelve a empezar. Los guiones
+        que ya tienes siguen aquí.
+      </p>
+      <div className="mt-4 space-y-3">
+        <Boton onClick={() => irA('planes')}>Subir de plan</Boton>
+        <Boton variante="secundario" onClick={() => irA('planes')}>
+          Comprar créditos
+        </Boton>
+      </div>
+    </div>
+  );
 
   return (
     <section aria-labelledby="titulo-guiones">
@@ -71,10 +103,16 @@ export function SeccionGuiones({ producto, modoPreferido }) {
             ))}
           </div>
           {errorDeEste && <AvisoError className="mt-3" error={crear.error} alReintentar={crear.reintentar} />}
-          <Boton variante="suave" icono={Sparkles} className="mt-4" onClick={() => crear.ejecutar(producto.id)} disabled={crear.cargando}>
-            Crear otros 3 guiones
-          </Boton>
-          <p className="mt-2 text-center text-base text-stone-600">Gratis e ilimitados. No gastan créditos.</p>
+          {enElTope ? (
+            tope
+          ) : (
+            <>
+              <Boton variante="suave" icono={Sparkles} className="mt-4" onClick={() => crear.ejecutar(producto.id)} disabled={crear.cargando}>
+                Crear otros 3 guiones
+              </Boton>
+              {pie}
+            </>
+          )}
         </>
       ) : (
         <Tarjeta className="mt-3 p-5">
@@ -86,10 +124,16 @@ export function SeccionGuiones({ producto, modoPreferido }) {
             </p>
           </div>
           {errorDeEste && <AvisoError className="mt-4" error={crear.error} alReintentar={crear.reintentar} />}
-          <Boton icono={Sparkles} className="mt-4" onClick={() => crear.ejecutar(producto.id)} disabled={crear.cargando}>
-            Crear mis 3 guiones
-          </Boton>
-          <p className="mt-2 text-center text-base text-stone-600">Gratis e ilimitados. No gastan créditos.</p>
+          {enElTope ? (
+            tope
+          ) : (
+            <>
+              <Boton icono={Sparkles} className="mt-4" onClick={() => crear.ejecutar(producto.id)} disabled={crear.cargando}>
+                Crear mis 3 guiones
+              </Boton>
+              {pie}
+            </>
+          )}
         </Tarjeta>
       )}
     </section>

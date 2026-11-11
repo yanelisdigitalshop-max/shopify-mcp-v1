@@ -40,7 +40,7 @@ export function leerConfig(env = process.env) {
     anthropic: {
       // Solo se guarda SI existe, nunca el valor.
       llaveConfigurada: Boolean(texto(env.VENDIVA_ANTHROPIC_API_KEY) ?? texto(env.ANTHROPIC_API_KEY)),
-      modelo: texto(env.ANTHROPIC_MODEL) ?? 'claude-opus-5-5',
+      modelo: texto(env.ANTHROPIC_MODEL) ?? 'claude-haiku-5-5',
     },
   };
 }

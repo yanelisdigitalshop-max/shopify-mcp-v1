@@ -56,6 +56,7 @@ export const PAQUETES_CREDITOS = [
 export const LIMITES_GRATIS = {
   videosCortosGratisMes: 3, // siempre con Sora
   busquedasMes: 10,
+  guionesMes: 100, // veces que puede tocar "Crear mis 3 guiones" en el mes
 };
 
 // Los 9 niveles por seguidores. `max: null` = sin techo.

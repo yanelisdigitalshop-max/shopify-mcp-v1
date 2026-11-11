@@ -2,7 +2,7 @@
 // El servidor es la fuente de verdad: cada cambio devuelve este mismo objeto.
 
 import crypto from 'node:crypto';
-import { PLANES, nivelPara } from '../../shared/datos.js';
+import { LIMITES_GRATIS, PLANES, nivelPara, planFrenaEnCero } from '../../shared/datos.js';
 import { sinSesion } from '../errores.js';
 import { renovarSiToca, proximaRenovacion } from './creditos.js';
 
@@ -109,6 +109,9 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
         productosUsados: totalProductos,
         productosMax: plan.maxProductos,
         puedeAgregarProducto: plan.maxProductos == null || totalProductos < plan.maxProductos,
+        // Veces que creó "sus 3 guiones" este mes. Solo el plan Gratis tiene tope (null = sin tope).
+        guionesUsados: usuaria.guiones_mes,
+        guionesMax: planFrenaEnCero(usuaria.plan) ? LIMITES_GRATIS.guionesMes : null,
       },
       historial: historial.map((h) => ({ id: h.id, tipo: h.tipo, detalle: h.detalle, creadoEn: h.creado_en })),
     };

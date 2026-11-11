@@ -209,7 +209,7 @@ export function Hoy({ irA }) {
           )}
         </section>
 
-        <SeccionGuiones producto={productoDeHoy} modoPreferido={perfil.modoGrabacion} />
+        <SeccionGuiones producto={productoDeHoy} modoPreferido={perfil.modoGrabacion} irA={irA} />
         <SeccionExtras producto={productoDeHoy} irA={irA} />
       </div>
 

@@ -9,7 +9,9 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-export const MODELO_POR_DEFECTO = 'claude-opus-5-5';
+// El Haiku más reciente: lo eligió la dueña para que cada creación cueste muy poco.
+// Se puede cambiar sin tocar el código con la variable ANTHROPIC_MODEL.
+export const MODELO_POR_DEFECTO = 'claude-haiku-5-5';
 
 // Modelos que aceptan el respaldo automático del servidor de Anthropic cuando
 // un filtro de seguridad declina una petición.
@@ -86,7 +88,7 @@ function traducirError(err) {
  * @param {string} [opciones.system]     instrucciones fijas (quién es y cómo escribe)
  * @param {number} [opciones.maxTokens]  tope de la respuesta
  * @param {'low'|'medium'|'high'} [opciones.esfuerzo]
- * @param {string} [opciones.modelo]     por defecto ANTHROPIC_MODEL o claude-opus-5-5
+ * @param {string} [opciones.modelo]     por defecto ANTHROPIC_MODEL o claude-haiku-5-5
  * @param {object} [opciones.cliente]    solo para pruebas: un cliente falso
  * @returns {Promise<{ texto: string, modelo: string, uso: { entrada: number, salida: number } }>}
  */
