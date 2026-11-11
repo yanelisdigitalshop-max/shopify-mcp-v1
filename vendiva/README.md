@@ -129,7 +129,7 @@ tests/                 Pruebas del servidor
 - **Honestidad:** las instrucciones a la IA (`server/ia/guionista.js`) prohíben inventar datos del producto y prometer resultados, ventas o seguidores. Sin avatar; en el modo sin cámara su cara no aparece.
 - **Modelo:** `claude-haiku-5-5`, el Haiku más reciente, para las tres creaciones (decisión de la dueña, 11 nov 2026).
 - **Costo medido con `claude-haiku-5-5` (11 nov 2026):** cerca de 0,3 centavos de dólar por cada juego de 3 guiones, 0,14 por un guion de en vivo y 0,04 por las 3 respuestas. Con `claude-opus-5-5` eran 12, 6 y 2 centavos. Cada creación guarda el modelo y los tokens usados en la tabla `creaciones`.
-- **Tope de guiones en el plan Gratis:** 100 veces «Crear mis 3 guiones» por mes. Solo cuenta lo entregado y vuelve a cero el día 1, junto con los créditos. Los planes de pago no tienen tope.
+- **Tope de guiones en el plan Gratis:** 100 veces «Crear mis 3 guiones» por mes. Solo cuenta lo entregado y vuelve a cero el día 1, junto con los créditos. Pasado el tope puede seguir creando: cada vez extra cuesta 1 crédito, con el aviso de costo antes y la devolución si la IA falla (decisión de la dueña, 11 nov 2026). Los planes de pago no tienen tope ni pagan nada por los guiones.
 - **Sin construir en esta parte:** ChatGPT como respaldo (no hay llave de OpenAI) y el registro de ventas.
 
 ## Decisiones de la dueña sobre la Parte 1

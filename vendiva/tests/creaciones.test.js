@@ -77,7 +77,7 @@ test('guiones: diez veces seguidas y con el saldo en cero siguen saliendo gratis
   assert.equal(await cuantas(usuariaId), 10);
 });
 
-test('plan Gratis: hasta 100 veces "Crear mis 3 guiones" por mes; la 101 se detiene sin llamar a la IA', async () => {
+test('plan Gratis: hasta 100 veces "Crear mis 3 guiones" gratis por mes; la 101 sin confirmar el crédito se detiene sin llamar a la IA', async () => {
   const { c, usuariaId, productoId } = await conProducto();
   let e = (await c.get('/api/estado')).json.estado;
   assert.deepEqual({ usados: e.limites.guionesUsados, max: e.limites.guionesMax }, { usados: 0, max: 100 });
@@ -91,10 +91,13 @@ test('plan Gratis: hasta 100 veces "Crear mis 3 guiones" por mes; la 101 se deti
 
   ia.llamadas.length = 0;
   const frenada = await c.post(`/api/productos/${productoId}/guiones`);
-  assert.equal(frenada.estado, 402);
+  assert.equal(frenada.estado, 409);
   assert.equal(frenada.json.error.codigo, 'LIMITE_GUIONES');
   assert.match(frenada.json.error.mensaje, /^Llegaste al límite de guiones gratis de este mes/);
-  assert.deepEqual({ usados: frenada.json.error.datos.usados, maximo: frenada.json.error.datos.maximo }, { usados: 100, maximo: 100 });
+  assert.deepEqual(
+    { costo: frenada.json.error.datos.costo, usados: frenada.json.error.datos.usados, maximo: frenada.json.error.datos.maximo },
+    { costo: 1, usados: 100, maximo: 100 },
+  );
   assert.equal(ia.llamadas.length, 0, 'la IA no se llamó');
   assert.equal(await cuantas(usuariaId), 2, 'no se guardó nada nuevo');
   e = (await c.get('/api/estado')).json.estado;
@@ -110,7 +113,7 @@ test('plan Gratis: hasta 100 veces "Crear mis 3 guiones" por mes; la 101 se deti
   // Borrar el producto no devuelve intentos.
   await c.del(`/api/productos/${productoId}`);
   const otro = await c.post('/api/productos', { nombre: 'Otro producto' });
-  assert.equal((await c.post(`/api/productos/${otro.json.productoId}/guiones`)).estado, 402);
+  assert.equal((await c.post(`/api/productos/${otro.json.productoId}/guiones`)).estado, 409);
 });
 
 test('el tope de guiones solo cuenta lo entregado y se reinicia el día 1', async () => {
@@ -126,10 +129,10 @@ test('el tope de guiones solo cuenta lo entregado y se reinicia el día 1', asyn
     comportamiento.responder = undefined;
 
     assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 201);
-    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 402);
+    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 409);
 
     s.ponerFecha(new Date('2026-11-30T20:00:00Z'));
-    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 402, 'mismo mes: sigue en el tope');
+    assert.equal((await c.post(`/api/productos/${productoId}/guiones`)).estado, 409, 'mismo mes: sigue en el tope');
 
     s.ponerFecha(new Date('2026-12-01T14:00:00Z'));
     const r = await c.post(`/api/productos/${productoId}/guiones`);
@@ -141,6 +144,81 @@ test('el tope de guiones solo cuenta lo entregado y se reinicia el día 1', asyn
   }
 });
 
+test('plan Gratis pasado el tope: cada "Crear mis 3 guiones" extra cuesta 1 crédito', async () => {
+  const { c, usuariaId, productoId } = await conProducto();
+  await s.db.query('update usuarias set guiones_mes = 100 where id = $1', [usuariaId]);
+
+  // Un costo distinto del que corresponde no sirve.
+  for (const cuerpo of [{}, { costoAceptado: 0 }, { costoAceptado: 2 }, { costoAceptado: 10 }]) {
+    const r = await c.post(`/api/productos/${productoId}/guiones`, cuerpo);
+    assert.equal(r.estado, 409, JSON.stringify(cuerpo));
+    assert.equal(r.json.error.codigo, 'LIMITE_GUIONES');
+  }
+  assert.equal(ia.llamadas.length, 0);
+
+  const r = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(r.estado, 201, JSON.stringify(r.json));
+  assert.equal(r.json.creacion.creditosCobrados, 1);
+  assert.equal(r.json.creacion.contenido.guiones.length, 3);
+  assert.equal(r.json.estado.creditos.total, 29, 'el saldo baja en 1');
+  assert.equal(r.json.estado.limites.guionesUsados, 101);
+  assert.deepEqual(await movimientos(usuariaId), [{ bolsa: 'plan', cantidad: -1, motivo: 'guiones_extra' }]);
+
+  const otra = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(otra.estado, 201);
+  assert.equal(otra.json.estado.creditos.total, 28);
+});
+
+test('guion extra: sin créditos no deja crear; con créditos de paquete sí', async () => {
+  const { c, usuariaId, productoId } = await conProducto();
+  await s.db.query('update usuarias set guiones_mes = 100, creditos_plan = 0, creditos_paquete = 0 where id = $1', [usuariaId]);
+  const r = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(r.estado, 402);
+  assert.equal(r.json.error.codigo, 'CREDITOS_INSUFICIENTES');
+  assert.match(r.json.error.mensaje, /cuesta 1 crédito y te quedan 0/);
+  assert.equal(ia.llamadas.length, 0, 'la IA no se llamó');
+  assert.equal(await cuantas(usuariaId), 0);
+  assert.equal((await c.get('/api/estado')).json.estado.limites.guionesUsados, 100);
+
+  await s.db.query('update usuarias set creditos_paquete = 5 where id = $1', [usuariaId]);
+  const conPaquete = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(conPaquete.estado, 201);
+  assert.deepEqual({ plan: conPaquete.json.estado.creditos.plan, paquete: conPaquete.json.estado.creditos.paquete }, { plan: 0, paquete: 4 });
+});
+
+test('guion extra: si la IA falla, se devuelve el crédito y el intento no cuenta', async () => {
+  const { c, usuariaId, productoId } = await conProducto();
+  await s.db.query('update usuarias set guiones_mes = 100 where id = $1', [usuariaId]);
+  comportamiento.responder = () => new ErrorIA('IA_OCUPADA', 'Ocupada.', { reintentable: true });
+  const r = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(r.estado, 503);
+  assert.match(r.json.error.mensaje, /No se gastó ningún crédito/);
+  const e = (await c.get('/api/estado')).json.estado;
+  assert.equal(e.creditos.total, 30);
+  assert.equal(e.limites.guionesUsados, 100);
+  assert.equal(await cuantas(usuariaId), 0);
+  assert.equal((await movimientos(usuariaId)).reduce((n, m) => n + m.cantidad, 0), 0, 'cobro y devolución se anulan');
+});
+
+test('guion extra: dos toques a la vez cobran un solo crédito', async () => {
+  const { c, usuariaId, productoId } = await conProducto();
+  await s.db.query('update usuarias set guiones_mes = 100 where id = $1', [usuariaId]);
+  comportamiento.demoraMs = 150;
+  const rs = await Promise.all([1, 2].map(() => c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 })));
+  assert.deepEqual(rs.map((r) => r.estado).sort(), [201, 409]);
+  assert.equal((await c.get('/api/estado')).json.estado.creditos.total, 29);
+  assert.equal(await cuantas(usuariaId), 1);
+});
+
+test('antes del tope los guiones son gratis aunque llegue un costo aceptado', async () => {
+  const { c, usuariaId, productoId } = await conProducto();
+  const r = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(r.estado, 201);
+  assert.equal(r.json.creacion.creditosCobrados, 0);
+  assert.equal(r.json.estado.creditos.total, 30);
+  assert.deepEqual(await movimientos(usuariaId), []);
+});
+
 test('los planes de pago no tienen tope de guiones', async () => {
   for (const plan of ['esencial', 'crecimiento', 'pro']) {
     const { c, usuariaId, productoId } = await conProducto();
@@ -148,6 +226,9 @@ test('los planes de pago no tienen tope de guiones', async () => {
     const r = await c.post(`/api/productos/${productoId}/guiones`);
     assert.equal(r.estado, 201, plan);
     assert.equal(r.json.estado.limites.guionesMax, null);
+    assert.equal(r.json.creacion.creditosCobrados, 0, 'no pagan nada extra por guiones');
+    assert.equal(r.json.estado.creditos.total, 30);
+    assert.deepEqual(await movimientos(usuariaId), []);
   }
 });
 

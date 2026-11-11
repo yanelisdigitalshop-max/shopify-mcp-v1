@@ -25,7 +25,7 @@ test('planes: nombres, precios, créditos y tope de productos', () => {
 
 test('costos en créditos y paquetes', () => {
   assert.deepEqual(COSTOS_CREDITOS, {
-    guiones: 0, videosCortos: 15, videosDesdeFoto: 15, gifs: 9, guionEnVivo: 10, respuestasComentarios: 3,
+    guiones: 0, guionesExtraGratis: 1, videosCortos: 15, videosDesdeFoto: 15, gifs: 9, guionEnVivo: 10, respuestasComentarios: 3,
   });
   assert.deepEqual(
     PAQUETES_CREDITOS.map((p) => [p.nombre, p.creditos, p.precio]),

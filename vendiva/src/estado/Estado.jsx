@@ -71,7 +71,9 @@ export function ProveedorEstado({ children }) {
       borrarProducto: (id) => guardar(api.del(`/productos/${id}`)),
 
       // Lo que escribe la IA. Los guiones son gratis; lo demás lleva el costo que ella aceptó en el aviso.
-      crearGuiones: (productoId) => guardar(api.post(`/productos/${productoId}/guiones`, {}, { esperaMs: ESPERA_IA_MS })),
+      // costoAceptado solo hace falta para los guiones extra del plan Gratis (después del tope del mes).
+      crearGuiones: (productoId, costoAceptado) =>
+        guardar(api.post(`/productos/${productoId}/guiones`, costoAceptado == null ? {} : { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
       crearEnVivo: (productoId, costoAceptado) =>
         guardar(api.post(`/productos/${productoId}/guion-en-vivo`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
       crearRespuestas: (productoId, costoAceptado) =>

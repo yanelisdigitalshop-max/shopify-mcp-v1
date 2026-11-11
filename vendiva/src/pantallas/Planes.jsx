@@ -50,8 +50,10 @@ export function Planes() {
         <p className="mt-5 flex items-start gap-3 border-t border-stone-200 pt-4 text-base leading-snug text-stone-700">
           <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-orange-800" aria-hidden="true" />
           <span>
-            Tus créditos del plan se renuevan solos el <strong className="font-semibold text-stone-900">{fechaLarga(creditos.renuevaEl)}</strong>. Los guiones
-            no gastan créditos.
+            Tus créditos del plan se renuevan solos el <strong className="font-semibold text-stone-900">{fechaLarga(creditos.renuevaEl)}</strong>.{' '}
+            {limites.guionesMax == null
+              ? 'Los guiones no gastan créditos.'
+              : `Los guiones no gastan créditos hasta ${limites.guionesMax} veces al mes; después, 1 crédito cada vez.`}
           </span>
         </p>
       </Tarjeta>

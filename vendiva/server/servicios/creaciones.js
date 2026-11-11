@@ -9,7 +9,7 @@
 // Así nunca se entrega algo sin cobrar ni se cobra algo que no se entregó.
 
 import crypto from 'node:crypto';
-import { CREACIONES, LIMITES_GRATIS, planFrenaEnCero } from '../../shared/datos.js';
+import { COSTOS_CREDITOS, CREACIONES, LIMITES_GRATIS, planFrenaEnCero } from '../../shared/datos.js';
 import { ErrorApp, noEncontrado, sinSesion } from '../errores.js';
 import { ErrorIA } from '../ia/claude.js';
 import { generarEnVivo, generarGuiones, generarRespuestas } from '../ia/guionista.js';
@@ -69,6 +69,7 @@ export async function crear({ db, ia, reloj, usuariaId, productoId, tipo, costoA
 
   const id = crypto.randomUUID();
   let cobro = null;
+  let costoGuiones = 0; // los guiones son gratis, salvo los extra del plan Gratis
 
   try {
     // 1. Leer lo necesario y apartar el costo.
@@ -83,14 +84,25 @@ export async function crear({ db, ia, reloj, usuariaId, productoId, tipo, costoA
 
       let extra = {};
       if (tipo === 'guiones') {
-        // Plan Gratis: los guiones no gastan créditos, pero tienen un tope por mes.
+        // Plan Gratis: los guiones son gratis hasta el tope del mes. Después, cada vez
+        // extra cuesta 1 crédito, y solo si ella lo confirmó en el aviso.
         if (planFrenaEnCero(usuaria.plan) && usuaria.guiones_mes >= LIMITES_GRATIS.guionesMes) {
-          throw new ErrorApp(
-            402,
-            'LIMITE_GUIONES',
-            `Llegaste al límite de guiones gratis de este mes: ${LIMITES_GRATIS.guionesMes} veces. El día 1 vuelve a empezar.`,
-            { datos: { usados: usuaria.guiones_mes, maximo: LIMITES_GRATIS.guionesMes, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
-          );
+          costoGuiones = COSTOS_CREDITOS.guionesExtraGratis;
+          if (costoAceptado !== costoGuiones) {
+            throw new ErrorApp(
+              409,
+              'LIMITE_GUIONES',
+              `Llegaste al límite de guiones gratis de este mes. Puedes seguir creando: cada vez extra cuesta ${costoGuiones} crédito.`,
+              {
+                datos: {
+                  costo: costoGuiones,
+                  usados: usuaria.guiones_mes,
+                  maximo: LIMITES_GRATIS.guionesMes,
+                  renuevaEl: proximaRenovacion(usuaria.periodo_creditos),
+                },
+              },
+            );
+          }
         }
         const anteriores = (
           await t.query("select contenido from creaciones where producto_id = $1 and tipo = 'guiones' order by creado_en desc limit 3", [productoId])
@@ -102,7 +114,13 @@ export async function crear({ db, ia, reloj, usuariaId, productoId, tipo, costoA
         };
       }
 
-      const cobrado = costo > 0 ? await cobrar(t, usuaria, { costo, motivo: tipo, referencia: id }) : null;
+      // Gratis frena aquí si no le alcanza (también para el crédito de un guion extra).
+      const cobrado =
+        costo > 0
+          ? await cobrar(t, usuaria, { costo, motivo: tipo, referencia: id })
+          : costoGuiones > 0
+            ? await cobrar(t, usuaria, { costo: costoGuiones, motivo: 'guiones_extra', referencia: id })
+            : null;
       return { perfil, producto, cobrado, ...extra };
     });
     // Solo cuenta como cobrado cuando la transacción ya quedó guardada.

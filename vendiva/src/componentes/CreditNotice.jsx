@@ -61,7 +61,7 @@ export function CreditNotice({ abierta, alCerrar, queSeCrea, paraQue, costo, sal
           <strong className="font-semibold text-stone-900">{formatoNumero(saldo.total)}</strong>. No se creó ni se cobró nada.
         </p>
         <p className="mt-3 text-base leading-snug text-stone-600">
-          Tus créditos se renuevan solos el {fechaLarga(saldo.renuevaEl)}. Los guiones no gastan créditos.
+          Tus créditos del plan se renuevan solos el {fechaLarga(saldo.renuevaEl)}.
         </p>
         <div className="mt-6 space-y-3">
           <Boton onClick={irAPlanes}>Comprar créditos y seguir creando</Boton>

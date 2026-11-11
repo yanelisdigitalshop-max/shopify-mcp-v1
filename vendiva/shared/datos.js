@@ -24,6 +24,7 @@ export const PLAN_INICIAL = 'gratis';
 // Costos en créditos. Los guiones y ganchos son ilimitados y gratis en todos los planes.
 export const COSTOS_CREDITOS = {
   guiones: 0,
+  guionesExtraGratis: 1, // plan Gratis, después de sus 100 guiones gratis del mes: cada vez extra
   videosCortos: 15, // 3 videos cortos
   videosDesdeFoto: 15, // 3 videos desde una foto
   gifs: 9, // 3 GIFs

@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, MessageSquareText, Radio, Sparkles } from 'lucide-react';
-import { CREACIONES, SEGUIDORES_PARA_AFILIADA, formatoNumero } from '../../shared/datos.js';
+import { COSTOS_CREDITOS, CREACIONES, SEGUIDORES_PARA_AFILIADA, formatoNumero } from '../../shared/datos.js';
 import { CreditNotice } from '../componentes/CreditNotice.jsx';
 import { IlustracionGuion } from '../componentes/Ilustraciones.jsx';
 import { LoadingPulse } from '../componentes/LoadingPulse.jsx';
@@ -38,21 +38,31 @@ export function SeccionGuiones({ producto, modoPreferido, irA }) {
   const { datos, acciones } = useEstado();
   const [enCurso, setEnCurso] = useState(null); // id del producto para el que se está creando
   const [modo, setModo] = useState(modoPreferido === 'con_camara' ? 'conCamara' : 'sinCamara');
-  const crear = useAccion(async (productoId) => {
-    setEnCurso(productoId);
-    try {
-      return await acciones.crearGuiones(productoId);
-    } finally {
-      setEnCurso(null);
-    }
-  });
+  const [aviso, setAviso] = useState(false); // aviso de costo para un guion extra (plan Gratis, pasado el tope)
+  const crear = useAccion(
+    async (productoId, costoAceptado) => {
+      setEnCurso(productoId);
+      try {
+        return await acciones.crearGuiones(productoId, costoAceptado);
+      } finally {
+        setEnCurso(null);
+      }
+    },
+    { alExito: () => setAviso(false) },
+  );
+  const costoExtra = COSTOS_CREDITOS.guionesExtraGratis;
 
   const creacion = producto ? datos.creaciones[producto.id]?.guiones : null;
   const creandoEste = crear.cargando && enCurso === producto?.id;
   const { guionesUsados, guionesMax } = datos.limites;
   // Plan Gratis: tope de veces por mes. Se muestra el aviso al llegar, o si el servidor frenó.
   const enElTope = (guionesMax != null && guionesUsados >= guionesMax) || (!crear.cargando && crear.error?.codigo === 'LIMITE_GUIONES');
-  const errorDeEste = !crear.cargando && crear.error && crear.error.codigo !== 'LIMITE_GUIONES';
+  // Con el aviso abierto, el error se muestra dentro del aviso.
+  const errorDeEste = !aviso && !crear.cargando && crear.error && crear.error.codigo !== 'LIMITE_GUIONES';
+  const abrirAviso = () => {
+    crear.limpiar();
+    setAviso(true);
+  };
   const pie =
     guionesMax == null ? (
       <p className="mt-2 text-center text-base text-stone-600">Gratis e ilimitados. No gastan créditos.</p>
@@ -65,15 +75,18 @@ export function SeccionGuiones({ producto, modoPreferido, irA }) {
     <div className="anim-entrar mt-4 rounded-3xl bg-amber-100 p-5 ring-1 ring-inset ring-amber-300/70" role="status">
       <h3 className="text-lg font-bold text-amber-950">Llegaste al límite de guiones gratis de este mes</h3>
       <p className="mt-1 text-base leading-snug text-amber-950/85">
-        El plan Gratis incluye {formatoNumero(guionesMax ?? 100)} veces al mes y ya las usaste. El {fechaLarga(datos.creditos.renuevaEl)} vuelve a empezar. Los guiones
-        que ya tienes siguen aquí.
+        El plan Gratis incluye {formatoNumero(guionesMax ?? 100)} veces al mes y ya las usaste. Puedes seguir creando: cada vez extra cuesta {costoExtra} crédito de tu
+        saldo (tienes {formatoNumero(datos.creditos.total)}). El {fechaLarga(datos.creditos.renuevaEl)} vuelven a ser gratis.
       </p>
       <div className="mt-4 space-y-3">
-        <Boton onClick={() => irA('planes')}>Subir de plan</Boton>
+        <Boton icono={Sparkles} onClick={abrirAviso} disabled={crear.cargando}>
+          Crear con {costoExtra} crédito
+        </Boton>
         <Boton variante="secundario" onClick={() => irA('planes')}>
-          Comprar créditos
+          Subir de plan
         </Boton>
       </div>
+      <p className="mt-3 text-base leading-snug text-amber-950/85">En los planes de pago los guiones no tienen tope.</p>
     </div>
   );
 
@@ -135,6 +148,26 @@ export function SeccionGuiones({ producto, modoPreferido, irA }) {
             </>
           )}
         </Tarjeta>
+      )}
+      {producto && (
+        <CreditNotice
+          abierta={aviso}
+          alCerrar={() => setAviso(false)}
+          queSeCrea="Un juego extra de 3 guiones"
+          paraQue={producto.nombre}
+          costo={costoExtra}
+          saldo={datos.creditos}
+          plan={datos.plan}
+          nota={`Ya usaste tus ${formatoNumero(guionesMax ?? 100)} guiones gratis de este mes. El ${fechaLarga(datos.creditos.renuevaEl)} vuelven a ser gratis.`}
+          creando={crear.cargando}
+          textoCreando="Creando tus guiones…"
+          error={crear.error}
+          alConfirmar={() => crear.ejecutar(producto.id, costoExtra)}
+          irAPlanes={() => {
+            setAviso(false);
+            irA('planes');
+          }}
+        />
       )}
     </section>
   );

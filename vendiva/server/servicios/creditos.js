@@ -49,7 +49,7 @@ export async function cobrar(t, usuaria, { costo, motivo, referencia }) {
     throw new ErrorApp(
       402,
       'CREDITOS_INSUFICIENTES',
-      `Ya se te terminó lo gratis de este mes. Esto cuesta ${costo} créditos y te quedan ${saldo}.`,
+      `Ya se te terminó lo gratis de este mes. Esto cuesta ${costo} ${costo === 1 ? 'crédito' : 'créditos'} y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`,
       { datos: { costo, saldo, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
     );
   }
