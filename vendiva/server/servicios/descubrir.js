@@ -1,31 +1,22 @@
-// Buscador de productos y tendencias de la semana.
+// Buscador de productos y tendencias de la semana, con datos de FastMoss.
 //
-//   Buscador:   gratis en créditos. Plan Gratis: 10 búsquedas al mes (vuelven a cero
-//               el día 1). Planes de pago: sin límite. Solo cuenta lo entregado.
-//   Guardar:    una idea del buscador pasa a "mis productos", respetando el tope de 6
-//               del plan Gratis.
-//   Tendencias: solo planes de pago. Un reporte por semana, con búsqueda web.
-//               En Gratis ni se crea ni se ve.
+//   Buscador:   UNA llamada a FastMoss por búsqueda, máximo 10 productos. No gasta créditos.
+//               Plan Gratis: 10 búsquedas al mes (vuelven a cero el día 1). Pago: sin límite.
+//               Solo cuenta una búsqueda que trajo productos (FastMoss no cobra las vacías).
+//   Guardar:    un producto del buscador pasa a "mis productos" con su precio, comisión y
+//               enlace, respetando el tope de 6 del plan Gratis.
+//   Tendencias: solo planes de pago. Los 10 más vendidos de la semana anterior en EE. UU.
+//               Un reporte por semana para todas: se pide a FastMoss una sola vez.
+//               En Gratis ni se pide ni se muestra.
 
 import crypto from 'node:crypto';
 import { LIMITES_GRATIS, esPlanDePago, planFrenaEnCero } from '../../shared/datos.js';
 import { ErrorApp, noEncontrado, sinSesion } from '../errores.js';
-import { ErrorIA } from '../ia/claude.js';
-import { generarBusqueda, generarTendencias } from '../ia/descubrir.js';
-import { traducirErrorIA, unaALaVez } from './creaciones.js';
-import { proximaRenovacion, renovarSiToca, semanaDe } from './creditos.js';
+import { ErrorFastmoss } from '../fuentes/fastmoss.js';
+import { unaALaVez } from './creaciones.js';
+import { proximaRenovacion, renovarSiToca, semanaAnteriorFastmoss, semanaDe } from './creditos.js';
 import { anotarHistorial } from './estado.js';
 import { comprobarTopeProductos } from './productos.js';
-
-export function busquedaPublica(b, productosExistentes) {
-  // "guardados" solo cuenta los productos que siguen existiendo (si borró uno, puede guardarlo de nuevo).
-  const guardados = Object.fromEntries(Object.entries(b.guardados ?? {}).filter(([, id]) => productosExistentes.has(id)));
-  return { id: b.id, nicho: b.nicho, ideas: b.resultado.ideas, consejo: b.resultado.consejo, guardados, creadoEn: b.creado_en };
-}
-
-export function tendenciaPublica(t) {
-  return { id: t.id, semana: t.semana, resumen: t.contenido.resumen, tendencias: t.contenido.tendencias, creadoEn: t.creado_en };
-}
 
 async function bloquearUsuaria(t, usuariaId, reloj) {
   const fila = (await t.query('select * from usuarias where id = $1 for update', [usuariaId])).rows[0];
@@ -33,13 +24,26 @@ async function bloquearUsuaria(t, usuariaId, reloj) {
   return renovarSiToca(t, fila, reloj());
 }
 
+function traducirErrorFastmoss(err, que) {
+  if (err instanceof ErrorFastmoss) {
+    console.error(`[fastmoss] ${que} falló: ${err.codigo}${err.detalle ? ` — ${err.detalle}` : ''}`);
+    const estado = err.codigo === 'FASTMOSS_PETICION' ? 422 : 503;
+    return new ErrorApp(estado, err.codigo, err.message);
+  }
+  console.error(`[fastmoss] ${que} falló:`, err);
+  return new ErrorApp(503, 'FASTMOSS_FALLO', 'El buscador tuvo un problema. Intenta de nuevo en un momento.');
+}
+
+const sinLlave = () =>
+  new ErrorApp(503, 'FASTMOSS_SIN_LLAVE', 'El buscador todavía no está conectado. Ya quedó anotado para revisarlo.');
+
 // ── Buscador ───────────────────────────────────────────────────────────────────
 
-export async function buscar({ db, ia, reloj, usuariaId, nicho }) {
-  if (!ia.lista()) throw traducirErrorIA(new ErrorIA('SIN_LLAVE', 'Falta la llave'), false);
+export async function buscar({ db, fastmoss, reloj, usuariaId, consulta }) {
+  if (!fastmoss.lista()) throw sinLlave();
 
   return unaALaVez(usuariaId, async () => {
-    const pedido = await db.tx(async (t) => {
+    await db.tx(async (t) => {
       const usuaria = await bloquearUsuaria(t, usuariaId, reloj);
       if (planFrenaEnCero(usuaria.plan) && usuaria.busquedas_mes >= LIMITES_GRATIS.busquedasMes) {
         throw new ErrorApp(
@@ -49,101 +53,116 @@ export async function buscar({ db, ia, reloj, usuariaId, nicho }) {
           { datos: { usadas: usuaria.busquedas_mes, maximo: LIMITES_GRATIS.busquedasMes, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
         );
       }
-      const perfil = (await t.query('select * from perfiles where usuaria_id = $1', [usuariaId])).rows[0];
-      const yaTiene = (await t.query('select nombre from productos where usuaria_id = $1 order by creado_en desc limit 20', [usuariaId])).rows.map((r) => r.nombre);
-      return { perfil, yaTiene };
     });
 
+    // Una sola llamada. Si falla, no se reintenta sola: ella decide si toca "Reintentar".
     let r;
     try {
-      r = await generarBusqueda(ia, { ...pedido, nicho, ahora: reloj() });
+      r = await fastmoss.buscarProductos(consulta);
     } catch (err) {
-      console.error(`[ia] buscador falló: ${err.codigo ?? err.name}${err.detalle ? ` — ${err.detalle}` : ''}`);
-      throw traducirErrorIA(err, false);
+      throw traducirErrorFastmoss(err, 'búsqueda');
     }
 
-    const id = crypto.randomUUID();
     const fila = await db.tx(async (t) => {
       const { rows } = await t.query(
-        `insert into busquedas (id, usuaria_id, nicho, resultado, modelo, tokens_entrada, tokens_salida)
-         values ($1, $2, $3, $4::jsonb, $5, $6, $7) returning *`,
-        [id, usuariaId, nicho, JSON.stringify(r.contenido), r.modelo, r.uso.entrada, r.uso.salida],
+        `insert into busquedas (id, usuaria_id, nicho, resultado, modelo) values ($1, $2, $3, $4::jsonb, 'fastmoss') returning *`,
+        [crypto.randomUUID(), usuariaId, consulta, JSON.stringify({ fuente: 'fastmoss', total: r.total, productos: r.productos })],
       );
-      // Solo cuenta para el límite la búsqueda que se entregó.
-      await t.query('update usuarias set busquedas_mes = busquedas_mes + 1 where id = $1', [usuariaId]);
-      await anotarHistorial(t, usuariaId, 'busqueda', { nicho });
+      // Solo cuenta si trajo productos (una búsqueda vacía no le quita una de sus 10).
+      if (r.productos.length) await t.query('update usuarias set busquedas_mes = busquedas_mes + 1 where id = $1', [usuariaId]);
+      await anotarHistorial(t, usuariaId, 'busqueda', { consulta, resultados: r.productos.length });
       return rows[0];
     });
-    return busquedaPublica(fila, new Set());
+    return { id: fila.id, consulta: fila.nicho, productos: r.productos, guardados: {}, creadoEn: fila.creado_en };
   });
 }
 
-export async function guardarIdea({ db, reloj, usuariaId, busquedaId, indice }) {
+export async function guardarProducto({ db, reloj, usuariaId, busquedaId, indice }) {
   return db.tx(async (t) => {
     await bloquearUsuaria(t, usuariaId, reloj);
-    const b = (await t.query('select * from busquedas where id = $1 and usuaria_id = $2', [busquedaId, usuariaId])).rows[0];
-    const idea = b?.resultado.ideas[indice];
-    if (!idea) throw noEncontrado('Esa idea');
+    const b = (await t.query("select * from busquedas where id = $1 and usuaria_id = $2 and resultado ? 'productos'", [busquedaId, usuariaId])).rows[0];
+    const p = b?.resultado.productos[indice];
+    if (!p) throw noEncontrado('Ese producto');
 
-    // Si ya la guardó y el producto sigue ahí, no se duplica.
-    const anterior = b.guardados?.[indice];
-    if (anterior) {
-      const existe = (await t.query('select 1 from productos where id = $1 and usuaria_id = $2', [anterior, usuariaId])).rows.length;
-      if (existe) return { productoId: anterior, nuevo: false };
+    // Si ya lo guardó (desde esta u otra búsqueda) y sigue en su lista, no se duplica.
+    const yaEsta = (await t.query('select id from productos where usuaria_id = $1 and fastmoss_id = $2', [usuariaId, p.id])).rows[0];
+    if (yaEsta) {
+      await t.query('update busquedas set guardados = guardados || jsonb_build_object($2::text, $3::text) where id = $1', [busquedaId, String(indice), yaEsta.id]);
+      return { productoId: yaEsta.id, nuevo: false };
     }
 
     await comprobarTopeProductos(t, usuariaId);
 
     const productoId = crypto.randomUUID();
-    // La descripción es lo que sabemos de verdad: por qué suele vender. Ella le agrega
-    // el precio, la comisión y el enlace cuando encuentre el producto en TikTok Shop.
     await t.query(
-      `insert into productos (id, usuaria_id, nombre, descripcion, origen) values ($1, $2, $3, $4, 'buscador')`,
-      [productoId, usuariaId, idea.producto.slice(0, 80), idea.porQueVende.slice(0, 500)],
+      `insert into productos (id, usuaria_id, nombre, descripcion, precio_centavos, comision_pct, enlace, origen, fastmoss_id)
+       values ($1, $2, $3, $4, $5, $6, $7, 'buscador', $8)`,
+      [
+        productoId,
+        usuariaId,
+        p.titulo.slice(0, 80),
+        // Si el título es largo, completo va en la descripción para que los guiones lo tengan.
+        p.titulo.length > 80 ? p.titulo.slice(0, 500) : null,
+        p.precioNumero == null ? null : Math.round(p.precioNumero * 100),
+        p.comisionPct != null && p.comisionPct >= 0 && p.comisionPct <= 100 ? p.comisionPct : null,
+        p.enlace,
+        p.id,
+      ],
     );
-    await t.query(`update busquedas set guardados = guardados || jsonb_build_object($2::text, $3::text) where id = $1`, [busquedaId, String(indice), productoId]);
-    await anotarHistorial(t, usuariaId, 'producto_agregado', { productoId, nombre: idea.producto, origen: 'buscador' });
+    await t.query('update busquedas set guardados = guardados || jsonb_build_object($2::text, $3::text) where id = $1', [busquedaId, String(indice), productoId]);
+    await anotarHistorial(t, usuariaId, 'producto_agregado', { productoId, nombre: p.titulo.slice(0, 80), origen: 'buscador' });
     return { productoId, nuevo: true };
   });
 }
 
 // ── Tendencias de la semana ────────────────────────────────────────────────────
 
-const soloPago = () =>
-  new ErrorApp(403, 'SOLO_PLANES_DE_PAGO', 'Las tendencias de la semana son de los planes de pago. Sube de plan para verlas.');
+const pendientes = new Map(); // semana -> promesa: si dos piden a la vez, FastMoss recibe una sola llamada
 
-export async function crearTendencias({ db, ia, reloj, usuariaId }) {
-  if (!ia.lista()) throw traducirErrorIA(new ErrorIA('SIN_LLAVE', 'Falta la llave'), false);
+export function tendenciaPublica(fila) {
+  return { id: fila.id, semana: fila.semana, semanaDatos: fila.semana_datos, productos: fila.productos, creadoEn: fila.creado_en };
+}
 
-  return unaALaVez(usuariaId, async () => {
-    const semana = semanaDe(reloj());
-    const pedido = await db.tx(async (t) => {
-      const usuaria = await bloquearUsuaria(t, usuariaId, reloj);
-      if (!esPlanDePago(usuaria.plan)) throw soloPago();
-      const existente = (await t.query('select * from tendencias where usuaria_id = $1 and semana = $2', [usuariaId, semana])).rows[0];
-      const perfil = (await t.query('select * from perfiles where usuaria_id = $1', [usuariaId])).rows[0];
-      return { existente, perfil };
-    });
-    // Uno por semana: si ya está, se devuelve el mismo sin volver a buscar.
-    if (pedido.existente) return tendenciaPublica(pedido.existente);
+export async function crearTendencias({ db, fastmoss, reloj, usuariaId }) {
+  const ahora = reloj();
+  const semana = semanaDe(ahora);
 
-    let r;
-    try {
-      r = await generarTendencias(ia, { perfil: pedido.perfil, ahora: reloj() });
-    } catch (err) {
-      console.error(`[ia] tendencias falló: ${err.codigo ?? err.name}${err.detalle ? ` — ${err.detalle}` : ''}`);
-      throw traducirErrorIA(err, false);
-    }
+  const usuaria = await db.tx((t) => bloquearUsuaria(t, usuariaId, reloj));
+  if (!esPlanDePago(usuaria.plan)) {
+    throw new ErrorApp(403, 'SOLO_PLANES_DE_PAGO', 'Las tendencias de la semana son de los planes de pago. Sube de plan para verlas.');
+  }
 
-    const fila = await db.tx(async (t) => {
-      const { rows } = await t.query(
-        `insert into tendencias (id, usuaria_id, semana, contenido, modelo, tokens_entrada, tokens_salida, busquedas_web)
-         values ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
-         on conflict (usuaria_id, semana) do nothing returning *`,
-        [crypto.randomUUID(), usuariaId, semana, JSON.stringify(r.contenido), r.modelo, r.uso.entrada, r.uso.salida, r.busquedasWeb ?? 0],
+  const existente = (await db.query('select * from tendencias_semana where semana = $1', [semana])).rows[0];
+  if (existente) return tendenciaPublica(existente);
+  if (!fastmoss.lista()) throw sinLlave();
+
+  if (!pendientes.has(semana)) {
+    const trabajo = (async () => {
+      // La semana anterior completa. Si FastMoss todavía no la tiene (vacía, no se cobra),
+      // se pide la de antes.
+      let semanaDatos = semanaAnteriorFastmoss(ahora, 1);
+      let r;
+      try {
+        r = await fastmoss.masVendidosDeLaSemana(semanaDatos);
+        if (!r.productos.length) {
+          semanaDatos = semanaAnteriorFastmoss(ahora, 2);
+          r = await fastmoss.masVendidosDeLaSemana(semanaDatos);
+        }
+      } catch (err) {
+        throw traducirErrorFastmoss(err, 'tendencias');
+      }
+      if (!r.productos.length) {
+        throw new ErrorApp(503, 'TENDENCIAS_VACIAS', 'Todavía no hay datos de esta semana. Intenta de nuevo mañana.');
+      }
+      const { rows } = await db.query(
+        `insert into tendencias_semana (id, semana, semana_datos, productos) values ($1, $2, $3, $4::jsonb)
+         on conflict (semana) do nothing returning *`,
+        [crypto.randomUUID(), semana, semanaDatos, JSON.stringify(r.productos)],
       );
-      return rows[0] ?? (await t.query('select * from tendencias where usuaria_id = $1 and semana = $2', [usuariaId, semana])).rows[0];
-    });
-    return tendenciaPublica(fila);
-  });
+      return rows[0] ?? (await db.query('select * from tendencias_semana where semana = $1', [semana])).rows[0];
+    })();
+    pendientes.set(semana, trabajo);
+    trabajo.finally(() => pendientes.delete(semana)).catch(() => {});
+  }
+  return tendenciaPublica(await pendientes.get(semana));
 }

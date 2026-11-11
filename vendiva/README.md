@@ -11,7 +11,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Paso 0 | Conexión con Claude leyendo la llave de variables de entorno | Listo. Probado con la llave de la dueña y `claude-opus-5-5` (10 nov 2026) |
 | Parte 1 | Base y cuentas: registro (con confirmación de 18 años), sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
 | Parte 2 | Guiones con la IA real (gratis e ilimitados, en los dos modos), guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos) con aviso antes de crear | Lista para revisar |
-| Parte 3 | Buscador de productos (10 búsquedas al mes en Gratis, sin límite en pago) y tendencias de la semana (solo planes de pago) | Lista para revisar |
+| Parte 3 | Buscador y tendencias con datos de FastMoss (10 búsquedas al mes en Gratis; tendencias solo de pago) | Código listo y probado con un FastMoss de mentira. **Falta la llave de FastMoss** |
 | Parte 4 | Foto a video, 3 videos y 3 GIFs | Pendiente |
 | Parte 5 | Voz y Programar | Pendiente |
 | Parte 6 | Textos para 4 redes y Vitrina | Pendiente |
@@ -84,6 +84,7 @@ Variables de entorno (ver `.env.example`):
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL donde viven las cuentas y los datos | Sí en producción. Sin ella el servidor no arranca |
 | `VENDIVA_ANTHROPIC_API_KEY` | Llave de Claude (Paso 0). También vale `ANTHROPIC_API_KEY` | Desde la Parte 2 |
+| `VENDIVA_FASTMOSS_CLIENT_SECRET` | `client_secret` de FastMoss (buscador y tendencias) | Desde la Parte 3 |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
 | `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-haiku-5-5` | No |
 | `PORT` | Puerto. Por defecto 3000 | No |
@@ -104,7 +105,7 @@ server/
   servicios/           estado completo de la usuaria, créditos
   ia/claude.js         callClaude y parseClaudeJson
   ia/guionista.js      Lo que se le pide a Claude y la revisión de lo que devuelve
-  ia/descubrir.js      Buscador de productos y tendencias (con búsqueda web y fuentes comprobadas)
+  fuentes/fastmoss.js  Conexión con la API de FastMoss (buscador y más vendidos de la semana)
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -133,13 +134,23 @@ tests/                 Pruebas del servidor
 - **Tope de guiones en el plan Gratis:** 100 veces «Crear mis 3 guiones» por mes. Solo cuenta lo entregado y vuelve a cero el día 1, junto con los créditos. Pasado el tope puede seguir creando: cada vez extra cuesta 1 crédito, con el aviso de costo antes y la devolución si la IA falla (decisión de la dueña, 11 nov 2026). Los planes de pago no tienen tope ni pagan nada por los guiones.
 - **Sin construir en esta parte:** ChatGPT como respaldo (no hay llave de OpenAI) y el registro de ventas.
 
-## Parte 3: buscador y tendencias
+## Parte 3: buscador y tendencias con FastMoss
 
-- **Vendiva no ve el catálogo de TikTok Shop.** El buscador (`POST /api/buscador`) da 5 ideas de tipos de producto: por qué venden, la comisión que conviene buscar, cómo comprobar y pedir la muestra gratis, y frases exactas para buscar en TikTok Shop. La pantalla lo dice tal cual; las instrucciones a la IA le prohíben afirmar que un producto concreto tiene muestra o tal comisión.
-- **Búsquedas:** no gastan créditos. Plan Gratis: 10 al mes, vuelven a cero el día 1 y solo cuentan las entregadas. Planes de pago: sin límite.
-- **Guardar una idea** (`POST /api/buscador/:id/guardar`) la agrega a sus productos con origen «buscador», respetando el tope de 6 del plan Gratis. «Crear su video» lleva a Hoy con ese producto elegido para crear sus 3 guiones.
-- **Tendencias de la semana** (`POST /api/tendencias`): solo planes de pago, uno por semana y por usuaria. Se escriben con una búsqueda web real (`web_search_20250305`); cada tendencia debe citar una página que salió en esa búsqueda y las que no, se descartan. En Gratis no se crea ni se ve: solo un aviso para subir de plan. Al bajar de plan el reporte se oculta, no se borra.
-- **Costo medido con `claude-haiku-5-5` (11 nov 2026):** cerca de 0,1 centavos de dólar por búsqueda y 1,3 centavos por reporte de tendencias (la mayor parte es la búsqueda web).
+Los datos vienen de la API REST de FastMoss (`server/fuentes/fastmoss.js`), verificada en la documentación oficial (developers.fastmoss.com) el 11 de noviembre de 2026:
+
+- **Dirección:** `https://openapi.fastmoss.com`, todo con POST y JSON. **Autenticación:** `Authorization: Bearer <client_secret>`.
+- **Buscador:** `POST /product/v1/search` con `keywords`, región `US`, productos a la venta, ordenados por ventas de 7 días, `pagesize` 10. **Una búsqueda = una llamada**; nunca se reintenta sola.
+- **Tendencias:** `POST /product/v1/rank/topSelling` con `date_info` de tipo `week` (la semana anterior completa), región `US`, `pagesize` 10. Un reporte por semana para todas las usuarias: se pide una sola vez. Si esa semana todavía no tiene datos, se pide la anterior.
+- **Precio de lista:** 0,01 USD por llamada en las dos (hasta 10 resultados). Si no hay resultados, FastMoss no cobra.
+- **Errores:** `code` distinto de 0 (10001 parámetros, 30001 sin permiso, 30002 límite de datos, 30003 demasiadas peticiones, 40001 servicio) se convierte en un mensaje amable.
+
+Reglas:
+
+- **La llave** va en la variable de entorno `VENDIVA_FASTMOSS_CLIENT_SECRET`. Nunca en el código ni en el chat. `/api/salud` dice si está puesta.
+- **Búsquedas:** no gastan créditos. Plan Gratis: 10 al mes, vuelven a cero el día 1; una búsqueda sin resultados no cuenta. Planes de pago: sin límite.
+- **En pantalla** se dice que las cifras son estimadas de FastMoss y que la muestra gratis no la confirma FastMoss: se confirma y se pide dentro de TikTok Shop.
+- **Guardar** un producto lo agrega a sus productos con su precio, comisión y enlace, respetando el máximo de 6 del plan Gratis y sin duplicarlo. Desde ahí se crean sus guiones, guion de en vivo y respuestas como en la Parte 2.
+- **Tendencias:** solo planes de pago. En Gratis no se piden ni se muestran: solo el aviso con «Subir de plan».
 - **No hay publicación automática en TikTok.**
 
 ## Decisiones de la dueña sobre la Parte 1

@@ -46,32 +46,6 @@ export const RESPUESTAS = {
   ],
 };
 
-export const IDEAS = {
-  ideas: Array.from({ length: 5 }, (_, i) => ({
-    producto: `Idea de producto ${i + 1}`,
-    porQueVende: `Se ve el resultado en segundos (${i + 1}).`,
-    comisionABuscar: 'Busca 15 % o más.',
-    muestraGratis: 'Mira si la marca ofrece muestra gratis y pídela; la marca decide.',
-    palabrasParaBuscar: ['heatless curler', 'rizador sin calor', 'satin curls'],
-    ideaDeVideo: 'Muestra el antes y el después.',
-  })),
-  consejo: 'Empieza por la que puedas mostrar mejor.',
-};
-
-export const FUENTES = [
-  { url: 'https://www.ejemplo-tendencias.com/tiktok-shop/semana-46/', titulo: 'Lo más vendido esta semana' },
-  { url: 'https://noticias.ejemplo.org/belleza', titulo: 'Belleza en TikTok Shop' },
-];
-
-export const TENDENCIAS = {
-  resumen: 'Esta semana se ven productos de temporada y regalos.',
-  tendencias: [
-    { nombre: 'Calendarios de adviento', queEs: 'Cajas con sorpresas.', porQue: 'Según la fuente, suben antes de las fiestas.', fuente: 'https://ejemplo-tendencias.com/tiktok-shop/semana-46', ideaDeVideo: 'Abrir una casilla al día.' },
-    { nombre: 'Rizadores sin calor', queEs: 'Rulos de tela.', porQue: 'Aparecen en la nota de belleza.', fuente: 'https://noticias.ejemplo.org/belleza', ideaDeVideo: 'Antes y después.' },
-    { nombre: 'Algo inventado', queEs: 'No salió en la búsqueda.', porQue: 'Sin fuente real.', fuente: 'https://pagina-que-no-salio.example/inventada', ideaDeVideo: 'Nada.' },
-  ],
-};
-
 /**
  * @param {object} [comportamiento]
  * @param {(n: number, pedido: string) => string | Error | undefined} [comportamiento.responder]
@@ -94,8 +68,6 @@ export function crearIaFalsa({ responder, demoraMs = 0 } = {}) {
       if (texto === undefined) {
         if (pedido.includes('Escribe un guion para un video')) texto = JSON.stringify(GUION);
         else if (pedido.includes('guion completo de un en vivo')) texto = JSON.stringify(EN_VIVO);
-        else if (pedido.includes('Recomiéndale 5 tipos de producto')) texto = JSON.stringify(IDEAS);
-        else if (pedido.includes('en tendencia en TikTok Shop')) texto = JSON.stringify(TENDENCIAS);
         else texto = JSON.stringify(RESPUESTAS);
       }
       const conWeb = opciones?.busquedasWeb > 0;

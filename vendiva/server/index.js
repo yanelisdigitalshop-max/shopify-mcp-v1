@@ -48,6 +48,7 @@ async function main() {
     console.log(`Vendiva lista en http://localhost:${config.puerto}`);
     console.log(`  base de datos: ${db.motor === 'postgres' ? 'PostgreSQL' : `local (${config.dirDatosLocales})`}`);
     console.log(`  Claude: ${config.anthropic.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_ANTHROPIC_API_KEY)'}`);
+    console.log(`  FastMoss: ${config.fastmoss.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_FASTMOSS_CLIENT_SECRET)'}`);
   });
 
   const limpieza = setInterval(() => borrarSesionesVencidas(db).catch(() => {}), 6 * 60 * 60 * 1000);

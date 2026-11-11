@@ -1,12 +1,11 @@
-// "Descubre qué vender" (buscador) y tendencias de la semana.
-// Vendiva no ve el catálogo de TikTok Shop: las ideas se presentan como ideas para
-// buscar allá, y las tendencias muestran de dónde salió cada una.
+// "Descubre qué vender" (buscador) y tendencias de la semana, con datos de FastMoss.
+// Las cifras de FastMoss son estimadas, y la muestra gratis no la confirma FastMoss:
+// las dos cosas se dicen en pantalla.
 
 import { useEffect, useState } from 'react';
-import { BadgePercent, Check, ExternalLink, Gift, Lightbulb, Lock, Search, TrendingUp, Video } from 'lucide-react';
+import { Check, ExternalLink, Gift, Info, Lock, Search, Store, TrendingUp, Video } from 'lucide-react';
 import { formatoNumero } from '../../shared/datos.js';
 import { LoadingPulse } from '../componentes/LoadingPulse.jsx';
-import { BotonCopiar } from '../componentes/ScriptCard.jsx';
 import { AvisoError, Boton, Campo, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 
@@ -17,63 +16,92 @@ function fechaLarga(iso) {
 }
 const fechaDe = (iso) => new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long' }).format(new Date(iso));
 
-function Bloque({ icono: Icono, titulo, children }) {
+/** Lunes y domingo de una semana ISO 'AAAA-SS'. */
+function diasDeSemana(semana) {
+  const [a, n] = semana.replace('-W', '-').split('-').map(Number);
+  const cuatro = new Date(Date.UTC(a, 0, 4));
+  const lunes = new Date(cuatro);
+  lunes.setUTCDate(cuatro.getUTCDate() - ((cuatro.getUTCDay() || 7) - 1) + (n - 1) * 7);
+  const domingo = new Date(lunes);
+  domingo.setUTCDate(lunes.getUTCDate() + 6);
+  const f = (d) => new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(d);
+  return `del ${f(lunes)} al ${f(domingo)}`;
+}
+
+const cifra = (n) => (n == null ? '—' : formatoNumero(n));
+
+function Foto({ src, titulo }) {
+  const [rota, setRota] = useState(false);
+  if (!src || rota) {
+    return (
+      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-2xl font-bold text-orange-900" aria-hidden="true">
+        {titulo.trim().charAt(0).toUpperCase()}
+      </span>
+    );
+  }
+  return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setRota(true)} className="h-20 w-20 shrink-0 rounded-2xl bg-stone-100 object-cover" />;
+}
+
+function Dato({ etiqueta, valor }) {
   return (
-    <div className="flex gap-3">
-      <Icono className="mt-0.5 h-5 w-5 shrink-0 text-orange-800" aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-[0.1em] text-stone-500">{titulo}</p>
-        <div className="mt-0.5 text-base leading-snug text-stone-800">{children}</div>
-      </div>
+    <div className="min-w-0 rounded-xl bg-stone-50 px-3 py-2 ring-1 ring-inset ring-stone-200/70">
+      <dt className="text-xs font-bold uppercase tracking-[0.08em] text-stone-500">{etiqueta}</dt>
+      <dd className="mt-0.5 truncate text-base font-bold tabular-nums text-stone-900">{valor}</dd>
     </div>
   );
 }
 
-// ── Una idea del buscador ──────────────────────────────────────────────────────
+function EnlaceTikTok({ href }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex min-h-11 items-center gap-2 rounded-xl text-base font-semibold text-orange-800 underline decoration-orange-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-700"
+    >
+      <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+      Ver en TikTok Shop
+    </a>
+  );
+}
 
-function IdeaCard({ numero, idea, busquedaId, productoId, irA }) {
+// ── Un producto del buscador ───────────────────────────────────────────────────
+
+function ProductoEncontrado({ numero, producto: p, busquedaId, productoId, irA }) {
   const { datos, acciones } = useEstado();
-  const guardar = useAccion(() => acciones.guardarIdea(busquedaId, numero - 1));
-  const guardada = Boolean(productoId);
-  const sinLugar = !guardada && !datos.limites.puedeAgregarProducto;
+  const guardar = useAccion(() => acciones.guardarProducto(busquedaId, numero - 1));
+  const guardado = Boolean(productoId);
+  const sinLugar = !guardado && !datos.limites.puedeAgregarProducto;
 
   return (
-    <article className="sombra-tarjeta min-w-0 rounded-3xl bg-white p-5 ring-1 ring-stone-900/5">
-      <div className="flex items-start gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-700 text-base font-bold text-white" aria-hidden="true">
-          {numero}
-        </span>
-        <div className="min-w-0">
-          <h3 className="text-lg font-bold leading-snug tracking-tight text-stone-900">{idea.producto}</h3>
-          <p className="mt-1 text-base leading-snug text-stone-700">{idea.porQueVende}</p>
+    <article className="sombra-tarjeta min-w-0 rounded-3xl bg-white p-4 ring-1 ring-stone-900/5">
+      <div className="flex items-start gap-3.5">
+        <Foto src={p.imagen} titulo={p.titulo} />
+        <div className="min-w-0 flex-1">
+          <h3 className="line-clamp-3 break-words text-base font-bold leading-snug text-stone-900">{p.titulo}</h3>
+          {p.tienda && (
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-stone-600">
+              <Store className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{p.tienda}</span>
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="mt-4 space-y-3.5">
-        <Bloque icono={BadgePercent} titulo="Comisión a buscar">
-          {idea.comisionABuscar}
-        </Bloque>
-        <Bloque icono={Gift} titulo="Muestra gratis">
-          {idea.muestraGratis}
-        </Bloque>
-        <Bloque icono={Search} titulo="Escribe esto en TikTok Shop">
-          <ul className="mt-1.5 flex flex-wrap gap-2">
-            {idea.palabrasParaBuscar.map((p) => (
-              <li key={p}>
-                <BotonCopiar texto={p} etiqueta={`Copiar «${p}»`} className="min-h-10 px-3 text-[15px]">
-                  {p}
-                </BotonCopiar>
-              </li>
-            ))}
-          </ul>
-        </Bloque>
-        <Bloque icono={Video} titulo="Idea de video">
-          {idea.ideaDeVideo}
-        </Bloque>
+      <dl className="mt-4 grid grid-cols-2 gap-2">
+        <Dato etiqueta="Precio" valor={p.precio ?? '—'} />
+        <Dato etiqueta="Comisión" valor={p.comisionPct == null ? '—' : `${p.comisionPct}%`} />
+        <Dato etiqueta="Ventas 7 días" valor={cifra(p.ventas7Dias)} />
+        <Dato etiqueta="Ventas totales" valor={cifra(p.ventasTotales)} />
+      </dl>
+
+      <div className="mt-3">
+        <EnlaceTikTok href={p.enlace} />
       </div>
 
-      <div className="mt-5 space-y-3 border-t border-stone-100 pt-4">
-        {guardada ? (
+      <div className="mt-2 space-y-3 border-t border-stone-100 pt-4">
+        {guardado ? (
           <>
             <p className="flex items-center gap-2 text-base font-semibold text-amber-900">
               <Check className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
@@ -103,22 +131,40 @@ function IdeaCard({ numero, idea, busquedaId, productoId, irA }) {
   );
 }
 
+function AvisoCifras() {
+  return (
+    <div className="space-y-2.5 rounded-2xl bg-white p-4 text-base leading-snug text-stone-700 ring-1 ring-stone-900/5">
+      <p className="flex items-start gap-3">
+        <Info className="mt-0.5 h-5 w-5 shrink-0 text-stone-500" aria-hidden="true" />
+        <span>Las ventas, precios y comisiones son cifras estimadas de FastMoss, no exactas. Pueden cambiar.</span>
+      </p>
+      <p className="flex items-start gap-3">
+        <Gift className="mt-0.5 h-5 w-5 shrink-0 text-orange-800" aria-hidden="true" />
+        <span>
+          <strong className="font-semibold text-stone-900">La muestra gratis no la confirma FastMoss.</strong> Ábrelo en TikTok Shop y mira ahí si la marca ofrece muestra
+          gratis para creadoras; la pides dentro de TikTok Shop y la marca decide.
+        </span>
+      </p>
+    </div>
+  );
+}
+
 // ── Buscador ───────────────────────────────────────────────────────────────────
 
 export function BuscadorProductos({ irA }) {
   const { datos, acciones } = useEstado();
   const { busquedasUsadas, busquedasMax } = datos.limites;
-  const [nicho, setNicho] = useState(datos.perfil.nicho ?? '');
-  const buscar = useAccion(acciones.buscar);
   const ultima = datos.buscador.ultima;
+  const [consulta, setConsulta] = useState(ultima?.consulta ?? datos.perfil.nicho ?? '');
+  const buscar = useAccion(acciones.buscar);
 
   const sinBusquedas = (busquedasMax != null && busquedasUsadas >= busquedasMax) || buscar.error?.codigo === 'LIMITE_BUSQUEDAS';
   const quedan = busquedasMax == null ? null : Math.max(0, busquedasMax - busquedasUsadas);
-  const errorVisible = buscar.error && buscar.error.codigo !== 'LIMITE_BUSQUEDAS';
+  const errorVisible = buscar.error && buscar.error.codigo !== 'LIMITE_BUSQUEDAS' && !buscar.error.campos;
 
   const enviar = (e) => {
     e.preventDefault();
-    if (nicho.trim().length >= 2) buscar.ejecutar(nicho);
+    if (consulta.trim().length >= 2) buscar.ejecutar(consulta);
   };
 
   return (
@@ -126,7 +172,7 @@ export function BuscadorProductos({ irA }) {
       <h2 id="titulo-buscador" className="text-xl font-bold tracking-tight text-stone-900">
         Descubre qué vender
       </h2>
-      <p className="mt-1 text-base leading-snug text-stone-600">Escribe tu nicho y te damos 5 ideas de productos para buscar en TikTok Shop, con la comisión que conviene buscar y cómo pedir la muestra gratis.</p>
+      <p className="mt-1 text-base leading-snug text-stone-600">Busca productos reales de TikTok Shop en Estados Unidos, con su precio, sus ventas y su comisión.</p>
 
       <Tarjeta className="mt-3 p-5">
         {sinBusquedas ? (
@@ -142,15 +188,16 @@ export function BuscadorProductos({ irA }) {
         ) : (
           <form onSubmit={enviar} noValidate>
             <Campo
-              etiqueta="¿Qué quieres vender?"
-              placeholder="Por ejemplo: cuidado del cabello"
-              value={nicho}
-              onChange={(e) => setNicho(e.target.value)}
-              error={buscar.error?.campos?.nicho}
+              etiqueta="¿Qué producto buscas?"
+              placeholder="Por ejemplo: hair brush, cepillo"
+              value={consulta}
+              onChange={(e) => setConsulta(e.target.value)}
+              error={buscar.error?.campos?.consulta}
+              ayuda="Funciona mejor en inglés, como se buscan en TikTok Shop de EE. UU."
               maxLength={60}
             />
-            {errorVisible && !buscar.error.campos && <AvisoError className="mt-4" error={buscar.error} alReintentar={buscar.reintentar} reintentando={buscar.cargando} />}
-            <Boton type="submit" icono={Search} className="mt-4" disabled={buscar.cargando || nicho.trim().length < 2}>
+            {errorVisible && <AvisoError className="mt-4" error={buscar.error} alReintentar={buscar.reintentar} reintentando={buscar.cargando} />}
+            <Boton type="submit" icono={Search} className="mt-4" disabled={buscar.cargando || consulta.trim().length < 2}>
               Buscar productos
             </Boton>
             <p className="mt-2 text-center text-base text-stone-600">
@@ -164,23 +211,26 @@ export function BuscadorProductos({ irA }) {
         <LoadingPulse className="mt-5" texto="Buscando productos con muestra gratis…" lineas={3} />
       ) : (
         ultima && (
-          <div key={ultima.id} className="anim-entrar mt-5">
+          <div key={ultima.id} className="anim-entrar mt-5 space-y-3">
             <p className="text-base text-stone-600">
-              Ideas para <strong className="font-semibold text-stone-900">{ultima.nicho}</strong>, del {fechaDe(ultima.creadoEn)}.
+              {ultima.productos.length ? `${ultima.productos.length} productos` : 'Ningún producto'} para{' '}
+              <strong className="font-semibold text-stone-900">«{ultima.consulta}»</strong>, del {fechaDe(ultima.creadoEn)}.
+              {ultima.productos.length ? ' Los más vendidos en 7 días primero.' : ''}
             </p>
-            <p className="mt-3 flex items-start gap-3 rounded-2xl bg-white p-4 text-base leading-snug text-stone-700 ring-1 ring-stone-900/5">
-              <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
-              <span>
-                Son ideas para buscar, no productos de TikTok Shop: Vendiva no ve su catálogo. Al encontrar el producto, confirma ahí su comisión y si ofrece muestra
-                gratis.
-              </span>
-            </p>
-            <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[repeat(2,minmax(0,1fr))] md:gap-4">
-              {ultima.ideas.map((idea, i) => (
-                <IdeaCard key={i} numero={i + 1} idea={idea} busquedaId={ultima.id} productoId={ultima.guardados[i]} irA={irA} />
-              ))}
-            </div>
-            {ultima.consejo && <p className="mt-4 rounded-2xl bg-amber-100/70 p-4 text-base leading-snug text-stone-800">{ultima.consejo}</p>}
+            {ultima.productos.length === 0 ? (
+              <p className="rounded-2xl bg-white p-4 text-base leading-snug text-stone-700 ring-1 ring-stone-900/5">
+                No encontramos productos con esas palabras. Prueba con otras, por ejemplo en inglés. Esta búsqueda no te quitó ninguna de tus búsquedas del mes.
+              </p>
+            ) : (
+              <>
+                <AvisoCifras />
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[repeat(2,minmax(0,1fr))] md:gap-4">
+                  {ultima.productos.map((p, i) => (
+                    <ProductoEncontrado key={`${p.id}-${i}`} numero={i + 1} producto={p} busquedaId={ultima.id} productoId={ultima.guardados[i]} irA={irA} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )
       )}
@@ -210,9 +260,7 @@ export function TendenciasSemana({ irA }) {
             </span>
             <div className="min-w-0">
               <h3 className="text-lg font-bold leading-snug text-stone-900">Las tendencias son de los planes de pago</h3>
-              <p className="mt-1 text-base leading-snug text-stone-700">
-                Cada semana buscamos en la web qué se está moviendo en TikTok Shop y te lo resumimos, con su fuente. Está en Esencial, Crecimiento y Pro.
-              </p>
+              <p className="mt-1 text-base leading-snug text-stone-700">Están en los planes Esencial, Crecimiento y Pro.</p>
             </div>
           </div>
           <Boton className="mt-4" onClick={() => irA('planes')}>
@@ -220,13 +268,10 @@ export function TendenciasSemana({ irA }) {
           </Boton>
         </Tarjeta>
       ) : crear.cargando ? (
-        <LoadingPulse className="mt-4" texto="Buscando las tendencias de la semana…" lineas={3} />
+        <LoadingPulse className="mt-4" texto="Buscando los más vendidos de la semana…" lineas={3} />
       ) : !tendencias.reporte ? (
         <Tarjeta className="mt-3 p-5">
-          <p className="text-base leading-snug text-stone-700">
-            Buscamos en la web qué se está moviendo esta semana en TikTok Shop, con preferencia por tu nicho, y te lo resumimos con su fuente. Uno por semana; no gasta
-            créditos.
-          </p>
+          <p className="text-base leading-snug text-stone-700">Los 10 productos más vendidos de la semana pasada en TikTok Shop de Estados Unidos, según FastMoss. Se actualiza una vez por semana.</p>
           {crear.error && <AvisoError className="mt-4" error={crear.error} alReintentar={crear.reintentar} />}
           <Boton icono={TrendingUp} className="mt-4" onClick={() => crear.ejecutar()}>
             Ver las tendencias de esta semana
@@ -234,32 +279,41 @@ export function TendenciasSemana({ irA }) {
         </Tarjeta>
       ) : (
         <div key={tendencias.reporte.id} className="anim-entrar mt-3 space-y-3">
-          <p className="text-base leading-snug text-stone-700">{tendencias.reporte.resumen}</p>
-          {tendencias.reporte.tendencias.map((t, i) => (
-            <article key={i} className="sombra-tarjeta min-w-0 rounded-3xl bg-white p-5 ring-1 ring-stone-900/5">
-              <h3 className="text-lg font-bold leading-snug tracking-tight text-stone-900">{t.nombre}</h3>
-              <p className="mt-1 text-base leading-snug text-stone-700">{t.queEs}</p>
-              <div className="mt-3 space-y-3">
-                <Bloque icono={TrendingUp} titulo="Por qué está en tendencia">
-                  {t.porQue}
-                </Bloque>
-                <Bloque icono={Video} titulo="Idea de video">
-                  {t.ideaDeVideo}
-                </Bloque>
-              </div>
-              <a
-                href={t.fuente}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 flex min-h-11 items-center gap-2 rounded-xl text-base font-semibold text-orange-800 underline decoration-orange-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-700"
-              >
-                <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="min-w-0 truncate">Fuente: {t.fuenteTitulo || new URL(t.fuente).hostname}</span>
-              </a>
-            </article>
-          ))}
+          <p className="text-base leading-snug text-stone-700">
+            Los más vendidos en TikTok Shop de Estados Unidos, semana {diasDeSemana(tendencias.reporte.semanaDatos)}, según FastMoss. Cifras estimadas, no exactas.
+          </p>
+          <ol className="space-y-3">
+            {tendencias.reporte.productos.map((p, i) => (
+              <li key={`${p.id}-${i}`} className="sombra-tarjeta min-w-0 rounded-3xl bg-white p-4 ring-1 ring-stone-900/5">
+                <div className="flex items-start gap-3.5">
+                  <div className="relative shrink-0">
+                    <Foto src={p.imagen} titulo={p.titulo} />
+                    <span className="absolute -left-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-stone-900 text-sm font-bold text-orange-50">
+                      {i + 1}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="line-clamp-3 break-words text-base font-bold leading-snug text-stone-900">{p.titulo}</h3>
+                    {p.tienda && (
+                      <p className="mt-1 flex items-center gap-1.5 text-sm text-stone-600">
+                        <Store className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{p.tienda}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2">
+                  <Dato etiqueta="Precio" valor={p.precio ?? '—'} />
+                  <Dato etiqueta="Ventas semana" valor={cifra(p.ventasSemana)} />
+                </dl>
+                <div className="mt-2">
+                  <EnlaceTikTok href={p.enlace} />
+                </div>
+              </li>
+            ))}
+          </ol>
           <p className="text-sm leading-snug text-stone-500">
-            Reporte del {fechaDe(tendencias.reporte.creadoEn)}, hecho con una búsqueda web. Las tendencias cambian rápido: antes de grabar, búscalas también en TikTok Shop.
+            Consultado el {fechaDe(tendencias.reporte.creadoEn)}. La muestra gratis y la comisión de cada producto se confirman dentro de TikTok Shop.
           </p>
         </div>
       )}

@@ -13,6 +13,7 @@ import { rutasProductos } from './rutas/productos.js';
 import { rutasCreaciones } from './rutas/creaciones.js';
 import { rutasDescubrir } from './rutas/descubrir.js';
 import { iaReal } from './ia/guionista.js';
+import { fastmossReal } from './fuentes/fastmoss.js';
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -50,7 +51,7 @@ function protegerCambios(config) {
   };
 }
 
-export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal }) {
+export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal, fastmoss = fastmossReal }) {
   const app = express();
   app.disable('x-powered-by');
   if (config.confiarEnProxy) app.set('trust proxy', Number(config.confiarEnProxy) || config.confiarEnProxy);
@@ -64,7 +65,8 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal }) 
               defaultSrc: ["'self'"],
               scriptSrc: ["'self'"],
               styleSrc: ["'self'", "'unsafe-inline'"],
-              imgSrc: ["'self'", 'data:', 'blob:'],
+              // https: para las fotos de productos que manda FastMoss desde su servidor de imágenes.
+              imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
               mediaSrc: ["'self'", 'blob:'],
               fontSrc: ["'self'", 'data:'],
               connectSrc: ["'self'"],
@@ -111,6 +113,7 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal }) 
       app: 'Vendiva',
       baseDeDatos,
       claude: config.anthropic.llaveConfigurada ? 'llave puesta' : 'falta la llave',
+      fastmoss: config.fastmoss.llaveConfigurada ? 'llave puesta' : 'falta la llave',
     });
   });
 
@@ -118,7 +121,7 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal }) 
   api.use(express.json({ limit: '100kb' }));
   api.use(cargarSesion(db, config));
 
-  const contexto = { db, config, reloj, ia };
+  const contexto = { db, config, reloj, ia, fastmoss };
   api.use(rutasCuenta(contexto));
   api.use(rutasPerfil(contexto));
   api.use(rutasProductos(contexto));

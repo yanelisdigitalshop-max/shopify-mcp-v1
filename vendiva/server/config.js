@@ -42,5 +42,10 @@ export function leerConfig(env = process.env) {
       llaveConfigurada: Boolean(texto(env.VENDIVA_ANTHROPIC_API_KEY) ?? texto(env.ANTHROPIC_API_KEY)),
       modelo: texto(env.ANTHROPIC_MODEL) ?? 'claude-haiku-5-5',
     },
+
+    fastmoss: {
+      // Solo se guarda SI existe, nunca el valor.
+      llaveConfigurada: Boolean(texto(env.VENDIVA_FASTMOSS_CLIENT_SECRET)),
+    },
   };
 }

@@ -31,6 +31,24 @@ export function semanaDe(fecha = new Date()) {
   return `${dia.getUTCFullYear()}-W${String(numero).padStart(2, '0')}`;
 }
 
+/** '2026-W46' -> la semana anterior completa, en el formato de FastMoss: '2026-45'. */
+export function semanaAnteriorFastmoss(fecha = new Date(), semanasAtras = 1) {
+  const s = semanaDe(new Date(fecha.getTime() - semanasAtras * 7 * 86400000));
+  return s.replace('-W', '-');
+}
+
+/** Lunes y domingo (AAAA-MM-DD) de una semana ISO 'AAAA-SS' o 'AAAA-WSS'. */
+export function diasDeSemana(semana) {
+  const [a, n] = semana.replace('-W', '-').split('-').map(Number);
+  const cuatroEnero = new Date(Date.UTC(a, 0, 4));
+  const lunes = new Date(cuatroEnero);
+  lunes.setUTCDate(cuatroEnero.getUTCDate() - ((cuatroEnero.getUTCDay() || 7) - 1) + (n - 1) * 7);
+  const domingo = new Date(lunes);
+  domingo.setUTCDate(lunes.getUTCDate() + 6);
+  const f = (d) => d.toISOString().slice(0, 10);
+  return { desde: f(lunes), hasta: f(domingo) };
+}
+
 /** 'AAAA-MM-01' del mes siguiente: el día en que se renuevan. */
 export function proximaRenovacion(periodo) {
   const [a, m] = periodo.split('-').map(Number);
