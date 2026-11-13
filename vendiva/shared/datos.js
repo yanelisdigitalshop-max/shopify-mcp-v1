@@ -59,7 +59,7 @@ export const PAQUETES_CREDITOS = [
 // Topes del plan Gratis (además de maxProductos).
 export const LIMITES_GRATIS = {
   videosCortosGratisMes: 3, // siempre con Sora
-  busquedasMes: 10,
+  busquedasMes: 60, // buscador de productos (FastMoss); decisión de la dueña, 13 nov 2026
   guionesMes: 100, // veces que puede tocar "Crear mis 3 guiones" en el mes
 };
 

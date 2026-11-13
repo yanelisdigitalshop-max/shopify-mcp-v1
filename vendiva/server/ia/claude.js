@@ -90,9 +90,7 @@ function traducirError(err) {
  * @param {'low'|'medium'|'high'} [opciones.esfuerzo]
  * @param {string} [opciones.modelo]     por defecto ANTHROPIC_MODEL o claude-haiku-5-5
  * @param {object} [opciones.cliente]    solo para pruebas: un cliente falso
- * @param {number} [opciones.busquedasWeb]  si es mayor que 0, Claude puede buscar en la web hasta ese número de veces
- * @returns {Promise<{ texto: string, modelo: string, uso: { entrada: number, salida: number },
- *                     fuentes: { url: string, titulo: string }[], busquedasWeb: number }>}
+ * @returns {Promise<{ texto: string, modelo: string, uso: { entrada: number, salida: number } }>}
  */
 export async function llamarClaude(messages, opciones = {}) {
   const {
@@ -101,7 +99,6 @@ export async function llamarClaude(messages, opciones = {}) {
     esfuerzo = 'medium',
     modelo = process.env.ANTHROPIC_MODEL?.trim() || MODELO_POR_DEFECTO,
     cliente,
-    busquedasWeb = 0,
   } = opciones;
 
   try {
@@ -112,32 +109,17 @@ export async function llamarClaude(messages, opciones = {}) {
       output_config: { effort: esfuerzo },
       messages,
       ...(system ? { system } : {}),
-      // Búsqueda web del servidor de Anthropic. Haiku 5.5 la acepta en esta versión.
-      ...(busquedasWeb > 0 ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: busquedasWeb }] } : {}),
     };
-    const pedir = (p) =>
-      MODELOS_CON_RESPALDO.has(modelo)
-        ? c.beta.messages.create({ ...p, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
-        : c.messages.create(p);
 
-    // Con búsqueda web, el servidor puede pausar el turno ("pause_turn"): se continúa
-    // devolviéndole lo que ya hizo, como máximo dos veces más.
-    let respuesta = await pedir(peticion);
-    const contenido = [...respuesta.content];
-    let entrada = respuesta.usage?.input_tokens ?? 0;
-    let salida = respuesta.usage?.output_tokens ?? 0;
-    for (let i = 0; respuesta.stop_reason === 'pause_turn' && i < 2; i += 1) {
-      respuesta = await pedir({ ...peticion, messages: [...messages, { role: 'assistant', content: contenido }] });
-      contenido.push(...respuesta.content);
-      entrada += respuesta.usage?.input_tokens ?? 0;
-      salida += respuesta.usage?.output_tokens ?? 0;
-    }
+    const respuesta = MODELOS_CON_RESPALDO.has(modelo)
+      ? await c.beta.messages.create({ ...peticion, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+      : await c.messages.create(peticion);
 
     if (respuesta.stop_reason === 'refusal') {
       throw new ErrorIA('IA_DECLINO', 'La inteligencia artificial no pudo escribir esto. Prueba describir el producto de otra forma.');
     }
 
-    const texto = contenido
+    const texto = respuesta.content
       .filter((bloque) => bloque.type === 'text')
       .map((bloque) => bloque.text)
       .join('')
@@ -149,16 +131,10 @@ export async function llamarClaude(messages, opciones = {}) {
     if (respuesta.stop_reason === 'max_tokens') {
       throw new ErrorIA('RESPUESTA_CORTADA', 'La respuesta salió incompleta. Intenta de nuevo.', { reintentable: true });
     }
-    // Las páginas que de verdad salieron en la búsqueda web (para comprobar las fuentes que cita).
-    const fuentes = contenido
-      .filter((b) => b.type === 'web_search_tool_result' && Array.isArray(b.content))
-      .flatMap((b) => b.content.filter((r) => r.type === 'web_search_result' && r.url).map((r) => ({ url: r.url, titulo: r.title ?? '' })));
     return {
       texto,
       modelo: respuesta.model ?? modelo,
-      uso: { entrada, salida },
-      fuentes,
-      busquedasWeb: contenido.filter((b) => b.type === 'server_tool_use' && b.name === 'web_search').length,
+      uso: { entrada: respuesta.usage?.input_tokens ?? 0, salida: respuesta.usage?.output_tokens ?? 0 },
     };
   } catch (err) {
     throw traducirError(err);

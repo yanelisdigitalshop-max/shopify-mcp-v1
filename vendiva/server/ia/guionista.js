@@ -122,22 +122,20 @@ const INTENTOS = 2;
  * Pide un JSON a la IA, lo limpia con parseClaudeJson y comprueba que traiga
  * la forma esperada. Si llega mal escrito o incompleto, lo pide una vez más.
  */
-export async function pedirJson(ia, { instrucciones, esquema, maxTokens, esfuerzo, system = SISTEMA, busquedasWeb = 0, intentos = INTENTOS }) {
+export async function pedirJson(ia, { instrucciones, esquema, maxTokens, esfuerzo, system = SISTEMA, intentos = INTENTOS }) {
   const uso = { entrada: 0, salida: 0 };
   let modelo = null;
   let ultimoError = null;
-  let web = 0;
 
   for (let intento = 1; intento <= intentos; intento += 1) {
-    const r = await ia.generar([{ role: 'user', content: instrucciones }], { system, maxTokens, esfuerzo, ...(busquedasWeb ? { busquedasWeb } : {}) });
+    const r = await ia.generar([{ role: 'user', content: instrucciones }], { system, maxTokens, esfuerzo });
     uso.entrada += r.uso?.entrada ?? 0;
     uso.salida += r.uso?.salida ?? 0;
     modelo = r.modelo ?? modelo;
-    web += r.busquedasWeb ?? 0;
 
     try {
       const revisado = esquema.safeParse(parseClaudeJson(r.texto));
-      if (revisado.success) return { contenido: revisado.data, modelo, uso, fuentes: r.fuentes ?? [], busquedasWeb: web };
+      if (revisado.success) return { contenido: revisado.data, modelo, uso };
       ultimoError = new ErrorIA('FORMA_INVALIDA', 'La respuesta llegó incompleta. Intenta de nuevo.', { reintentable: true });
       // Para el registro del servidor: qué campo no cumplió (nunca el contenido).
       ultimoError.detalle = revisado.error.issues.slice(0, 4).map((i) => `${i.path.join('.')}: ${i.code}${i.maximum ? ` (máx. ${i.maximum})` : ''}`).join('; ');

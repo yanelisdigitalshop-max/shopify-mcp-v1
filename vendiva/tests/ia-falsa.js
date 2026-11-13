@@ -70,8 +70,7 @@ export function crearIaFalsa({ responder, demoraMs = 0 } = {}) {
         else if (pedido.includes('guion completo de un en vivo')) texto = JSON.stringify(EN_VIVO);
         else texto = JSON.stringify(RESPUESTAS);
       }
-      const conWeb = opciones?.busquedasWeb > 0;
-      return { texto, modelo: 'ia-de-prueba', uso: { entrada: 100, salida: 200 }, fuentes: conWeb ? FUENTES : [], busquedasWeb: conWeb ? 2 : 0 };
+      return { texto, modelo: 'ia-de-prueba', uso: { entrada: 100, salida: 200 } };
     },
   };
 }

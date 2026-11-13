@@ -1,6 +1,6 @@
 // Tarjeta de un plan. Muestra solo los datos fijos: precio, créditos y productos.
 
-import { formatoNumero } from '../../shared/datos.js';
+import { LIMITES_GRATIS, formatoNumero, planFrenaEnCero } from '../../shared/datos.js';
 
 export function PlanCard({ plan, actual = false }) {
   return (
@@ -25,6 +25,10 @@ export function PlanCard({ plan, actual = false }) {
         <div className="flex items-baseline justify-between gap-3">
           <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>Productos</dt>
           <dd className="font-bold">{plan.maxProductos == null ? 'Sin tope' : `Máximo ${plan.maxProductos}`}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>Buscador de productos</dt>
+          <dd className="font-bold">{planFrenaEnCero(plan.id) ? `${LIMITES_GRATIS.busquedasMes} al mes` : 'Sin límite'}</dd>
         </div>
       </dl>
     </div>

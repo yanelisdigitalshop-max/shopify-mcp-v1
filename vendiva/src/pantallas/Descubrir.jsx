@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { Check, ExternalLink, Gift, Info, Lock, Search, Store, TrendingUp, Video } from 'lucide-react';
-import { formatoNumero } from '../../shared/datos.js';
+import { LIMITES_GRATIS, formatoNumero } from '../../shared/datos.js';
 import { LoadingPulse } from '../componentes/LoadingPulse.jsx';
 import { AvisoError, Boton, Campo, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
@@ -177,7 +177,7 @@ export function BuscadorProductos({ irA }) {
       <Tarjeta className="mt-3 p-5">
         {sinBusquedas ? (
           <div role="status">
-            <h3 className="text-lg font-bold text-stone-900">Ya usaste tus {formatoNumero(busquedasMax ?? 10)} búsquedas de este mes</h3>
+            <h3 className="text-lg font-bold text-stone-900">Ya usaste tus {formatoNumero(busquedasMax ?? LIMITES_GRATIS.busquedasMes)} búsquedas de este mes</h3>
             <p className="mt-1 text-base leading-snug text-stone-700">
               El {fechaLarga(datos.creditos.renuevaEl)} vuelven a empezar. En los planes de pago el buscador no tiene límite.
             </p>

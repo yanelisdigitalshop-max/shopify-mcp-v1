@@ -11,7 +11,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Paso 0 | Conexión con Claude leyendo la llave de variables de entorno | Listo. Probado con la llave de la dueña y `claude-opus-5-5` (10 nov 2026) |
 | Parte 1 | Base y cuentas: registro (con confirmación de 18 años), sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
 | Parte 2 | Guiones con la IA real (gratis e ilimitados, en los dos modos), guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos) con aviso antes de crear | Lista para revisar |
-| Parte 3 | Buscador y tendencias con datos de FastMoss (10 búsquedas al mes en Gratis; tendencias solo de pago) | Código listo y probado con un FastMoss de mentira. **Falta la llave de FastMoss** |
+| Parte 3 | Buscador y tendencias con datos de FastMoss (60 búsquedas al mes en Gratis; tendencias solo de pago) | Código listo y probado con un FastMoss de mentira. **Falta la llave de FastMoss** |
 | Parte 4 | Foto a video, 3 videos y 3 GIFs | Pendiente |
 | Parte 5 | Voz y Programar | Pendiente |
 | Parte 6 | Textos para 4 redes y Vitrina | Pendiente |
@@ -147,7 +147,7 @@ Los datos vienen de la API REST de FastMoss (`server/fuentes/fastmoss.js`), veri
 Reglas:
 
 - **La llave** va en la variable de entorno `VENDIVA_FASTMOSS_CLIENT_SECRET`. Nunca en el código ni en el chat. `/api/salud` dice si está puesta.
-- **Búsquedas:** no gastan créditos. Plan Gratis: 10 al mes, vuelven a cero el día 1; una búsqueda sin resultados no cuenta. Planes de pago: sin límite.
+- **Búsquedas:** no gastan créditos. Plan Gratis: 60 al mes (decisión de la dueña, 13 nov 2026), vuelven a cero el día 1; una búsqueda sin resultados no cuenta y el servidor rechaza la 61 con el aviso de subir de plan. Planes de pago: sin límite. La pestaña Planes lo muestra en cada tarjeta.
 - **En pantalla** se dice que las cifras son estimadas de FastMoss y que la muestra gratis no la confirma FastMoss: se confirma y se pide dentro de TikTok Shop.
 - **Guardar** un producto lo agrega a sus productos con su precio, comisión y enlace, respetando el máximo de 6 del plan Gratis y sin duplicarlo. Desde ahí se crean sus guiones, guion de en vivo y respuestas como en la Parte 2.
 - **Tendencias:** solo planes de pago. En Gratis no se piden ni se muestran: solo el aviso con «Subir de plan».

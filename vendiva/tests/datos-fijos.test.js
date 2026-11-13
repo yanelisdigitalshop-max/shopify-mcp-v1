@@ -31,7 +31,7 @@ test('costos en créditos y paquetes', () => {
     PAQUETES_CREDITOS.map((p) => [p.nombre, p.creditos, p.precio]),
     [['Chico', 100, 9], ['Mediano', 300, 24], ['Grande', 750, 49], ['Tienda', 2000, 99]],
   );
-  assert.deepEqual(LIMITES_GRATIS, { videosCortosGratisMes: 3, busquedasMes: 10, guionesMes: 100 });
+  assert.deepEqual(LIMITES_GRATIS, { videosCortosGratisMes: 3, busquedasMes: 60, guionesMes: 100 });
 });
 
 test('los 9 niveles por seguidores', () => {

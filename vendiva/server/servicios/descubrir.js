@@ -1,7 +1,7 @@
 // Buscador de productos y tendencias de la semana, con datos de FastMoss.
 //
 //   Buscador:   UNA llamada a FastMoss por búsqueda, máximo 10 productos. No gasta créditos.
-//               Plan Gratis: 10 búsquedas al mes (vuelven a cero el día 1). Pago: sin límite.
+//               Plan Gratis: 60 búsquedas al mes (vuelven a cero el día 1). Pago: sin límite.
 //               Solo cuenta una búsqueda que trajo productos (FastMoss no cobra las vacías).
 //   Guardar:    un producto del buscador pasa a "mis productos" con su precio, comisión y
 //               enlace, respetando el tope de 6 del plan Gratis.

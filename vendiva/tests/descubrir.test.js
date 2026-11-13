@@ -48,16 +48,21 @@ test('buscador: una búsqueda = una llamada a FastMoss; productos reales con pre
   assert.equal(ia.llamadas.length, 0, 'el buscador no usa la IA');
 });
 
-test('buscador: plan Gratis, 10 al mes; la 11 no llama a FastMoss', async () => {
+test('buscador: plan Gratis, 60 al mes; la 61 no llama a FastMoss y avisa de subir de plan', async () => {
   const { c, usuariaId } = await conCuenta();
-  await s.db.query('update usuarias set busquedas_mes = 9 where id = $1', [usuariaId]);
-  assert.equal((await c.post('/api/buscador', { consulta: 'mug' })).estado, 201);
+  assert.equal((await estado(c)).limites.busquedasMax, 60);
+  await s.db.query('update usuarias set busquedas_mes = 59 where id = $1', [usuariaId]);
+  const sesenta = await c.post('/api/buscador', { consulta: 'mug' });
+  assert.equal(sesenta.estado, 201, 'la 60 todavía entra');
+  assert.equal(sesenta.json.estado.limites.busquedasUsadas, 60);
   fm.llamadas.length = 0;
-  const once = await c.post('/api/buscador', { consulta: 'mug' });
-  assert.equal(once.estado, 402);
-  assert.equal(once.json.error.codigo, 'LIMITE_BUSQUEDAS');
+  const r61 = await c.post('/api/buscador', { consulta: 'mug' });
+  assert.equal(r61.estado, 402);
+  assert.equal(r61.json.error.codigo, 'LIMITE_BUSQUEDAS');
+  assert.match(r61.json.error.mensaje, /Ya usaste tus 60 búsquedas de este mes.*en los planes de pago no hay límite/);
+  assert.equal(r61.json.error.datos.maximo, 60);
   assert.equal(fm.llamadas.length, 0);
-  assert.equal((await estado(c)).limites.busquedasUsadas, 10);
+  assert.equal((await estado(c)).limites.busquedasUsadas, 60);
 });
 
 test('buscador: una búsqueda sin resultados no cuenta (FastMoss no la cobra)', async () => {
@@ -98,7 +103,7 @@ test('buscador: se renueva el día 1; los planes de pago no tienen límite', asy
   s.ponerFecha(new Date('2026-11-20T15:00:00Z'));
   try {
     const { c, usuariaId } = await conCuenta();
-    await s.db.query('update usuarias set busquedas_mes = 10 where id = $1', [usuariaId]);
+    await s.db.query('update usuarias set busquedas_mes = 60 where id = $1', [usuariaId]);
     assert.equal((await c.post('/api/buscador', { consulta: 'mug' })).estado, 402);
     s.ponerFecha(new Date('2026-12-01T14:00:00Z'));
     const r = await c.post('/api/buscador', { consulta: 'mug' });
@@ -109,7 +114,7 @@ test('buscador: se renueva el día 1; los planes de pago no tienen límite', asy
   }
   for (const plan of ['esencial', 'crecimiento', 'pro']) {
     const { c, usuariaId } = await conCuenta({ plan });
-    await s.db.query('update usuarias set busquedas_mes = 80 where id = $1', [usuariaId]);
+    await s.db.query('update usuarias set busquedas_mes = 500 where id = $1', [usuariaId]);
     const r = await c.post('/api/buscador', { consulta: 'mug' });
     assert.equal(r.estado, 201, plan);
     assert.equal(r.json.estado.limites.busquedasMax, null);
