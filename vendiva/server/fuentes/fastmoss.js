@@ -4,7 +4,7 @@
 //   - Dirección: https://openapi.fastmoss.com. Todas las peticiones son POST con JSON.
 //   - Autenticación: cabecera "Authorization: Bearer <client_secret>".
 //   - Respuesta: { code, msg, data, request_id, timestamp }. Éxito = HTTP 200 y code 0.
-//     Códigos: 10001 parámetros, 20001 no encontrado, 30001 sin permiso,
+//     Códigos: 1002 llave inválida (no documentado, visto en la API real), 10001 parámetros, 20001 no encontrado, 30001 sin permiso,
 //     30002 límite de datos superado, 30003 demasiadas peticiones, 40001 error del servicio.
 //   - Precio: /product/v1/search y /product/v1/rank/topSelling cuestan 0,01 USD por
 //     llamada con pagesize de hasta 10. Si no hay resultados, no se cobra.
@@ -33,6 +33,11 @@ export const fastmossConfigurado = (env = process.env) => Boolean(leerLlave(env)
 
 function traducir(estadoHttp, codigo, msg) {
   const detalle = `HTTP ${estadoHttp}, code ${codigo ?? '-'}${msg ? `, ${String(msg).slice(0, 120)}` : ''}`;
+  // 1002 = "invalid client_secret" (visto en la API real, 13 nov 2026; no viene en la lista
+  // de códigos de la documentación). Es la llave, no un fallo pasajero: reintentar no lo arregla.
+  if (codigo === 1002) {
+    return new ErrorFastmoss('FASTMOSS_SIN_PERMISO', 'El buscador no está disponible: la llave de FastMoss no es válida. Ya quedó anotado para revisarlo.', { detalle });
+  }
   if (estadoHttp === 401 || estadoHttp === 403 || codigo === 30001) {
     return new ErrorFastmoss('FASTMOSS_SIN_PERMISO', 'El buscador no está disponible en este momento. Ya quedó anotado para revisarlo.', { detalle });
   }
