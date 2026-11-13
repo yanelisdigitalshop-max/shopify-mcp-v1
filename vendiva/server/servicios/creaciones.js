@@ -45,9 +45,11 @@ export function traducirErrorIA(err, seCobro) {
     return new ErrorApp(503, 'IA_FALLO', `Algo salió mal al crear. Intenta de nuevo.${sinCargo}`);
   }
   if (err.codigo === 'IA_DECLINO') return new ErrorApp(422, 'IA_DECLINO', `${err.message}${sinCargo}`);
-  if (err.reintentable) return new ErrorApp(503, err.codigo, `${err.message}${sinCargo}`);
+  if (err.reintentable) return new ErrorApp(503, err.codigo, `${err.message}${sinCargo}`, { reintentable: true });
   // Llave faltante o rechazada, petición mal armada: ella no puede arreglarlo.
-  return new ErrorApp(503, 'IA_NO_DISPONIBLE', `La inteligencia artificial no está disponible en este momento. Ya quedó anotado para revisarlo.${sinCargo}`);
+  return new ErrorApp(503, 'IA_NO_DISPONIBLE', `La inteligencia artificial no está disponible en este momento. Ya quedó anotado para revisarlo.${sinCargo}`, {
+    reintentable: false,
+  });
 }
 
 export function creacionPublica(c) {

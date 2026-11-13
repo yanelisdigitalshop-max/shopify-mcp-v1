@@ -19,6 +19,15 @@ export class ErrorApi extends Error {
   }
 }
 
+/**
+ * ¿Ofrecemos "Reintentar"? Si el servidor lo dice (error.reintentable true/false), manda él:
+ * una llave inválida da 503 pero reintentar no la arregla. Si no lo dice, se decide por el estado.
+ */
+export function reintentableDe(estado, error) {
+  if (typeof error?.reintentable === 'boolean') return error.reintentable;
+  return estado >= 500 || estado === 429 || !error;
+}
+
 async function pedir(metodo, ruta, cuerpo, { esperaMs = ESPERA_MAXIMA_MS } = {}) {
   const control = new AbortController();
   const reloj = setTimeout(() => control.abort(), esperaMs);
@@ -60,7 +69,7 @@ async function pedir(metodo, ruta, cuerpo, { esperaMs = ESPERA_MAXIMA_MS } = {})
       campos: e?.campos ?? null,
       datos: e?.datos ?? null,
       estado: respuesta.status,
-      reintentable: respuesta.status >= 500 || respuesta.status === 429 || !e,
+      reintentable: reintentableDe(respuesta.status, e),
     });
   }
   return json;

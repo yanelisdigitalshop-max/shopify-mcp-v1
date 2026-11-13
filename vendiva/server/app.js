@@ -135,7 +135,13 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal, fa
   api.use((err, req, res, _next) => {
     if (err instanceof ErrorApp) {
       return res.status(err.estado).json({
-        error: { codigo: err.codigo, mensaje: err.message, campos: err.campos ?? undefined, datos: err.datos ?? undefined },
+        error: {
+          codigo: err.codigo,
+          mensaje: err.message,
+          campos: err.campos ?? undefined,
+          datos: err.datos ?? undefined,
+          reintentable: err.reintentable ?? undefined,
+        },
       });
     }
     if (err?.type === 'entity.parse.failed' || err?.type === 'entity.too.large') {

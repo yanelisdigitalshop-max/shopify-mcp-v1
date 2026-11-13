@@ -81,6 +81,7 @@ test('buscador: si FastMoss falla, no cuenta, no reintenta solo y avisa', async 
   const r = await c.post('/api/buscador', { consulta: 'mug' });
   assert.equal(r.estado, 503);
   assert.equal(r.json.error.codigo, 'FASTMOSS_OCUPADO');
+  assert.equal(r.json.error.reintentable, true, 'ocupado: sí tiene sentido reintentar');
   assert.equal(fm.llamadas.length, 1, 'una sola llamada');
   assert.equal((await estado(c)).limites.busquedasUsadas, 0);
 
@@ -88,6 +89,17 @@ test('buscador: si FastMoss falla, no cuenta, no reintenta solo y avisa', async 
   const sinSaldo = await c.post('/api/buscador', { consulta: 'mug' });
   assert.equal(sinSaldo.estado, 503);
   assert.match(sinSaldo.json.error.mensaje, /límite de consultas/);
+  assert.equal(sinSaldo.json.error.reintentable, false);
+});
+
+test('buscador: con la llave inválida avisa y dice que no se puede reintentar', async () => {
+  const { c } = await conCuenta();
+  fm.control.fallar = new ErrorFastmoss('FASTMOSS_SIN_PERMISO', 'El buscador no está disponible: la llave de FastMoss no es válida. Ya quedó anotado para revisarlo.');
+  const r = await c.post('/api/buscador', { consulta: 'mug' });
+  assert.equal(r.estado, 503);
+  assert.equal(r.json.error.codigo, 'FASTMOSS_SIN_PERMISO');
+  assert.equal(r.json.error.reintentable, false);
+  assert.match(r.json.error.mensaje, /llave de FastMoss no es válida/);
 });
 
 test('buscador: sin la llave de FastMoss avisa y no llama', async () => {
@@ -96,6 +108,7 @@ test('buscador: sin la llave de FastMoss avisa y no llama', async () => {
   const r = await c.post('/api/buscador', { consulta: 'mug' });
   assert.equal(r.estado, 503);
   assert.equal(r.json.error.codigo, 'FASTMOSS_SIN_LLAVE');
+  assert.equal(r.json.error.reintentable, false);
   assert.equal(fm.llamadas.length, 0);
 });
 

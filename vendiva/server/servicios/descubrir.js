@@ -28,14 +28,14 @@ function traducirErrorFastmoss(err, que) {
   if (err instanceof ErrorFastmoss) {
     console.error(`[fastmoss] ${que} falló: ${err.codigo}${err.detalle ? ` — ${err.detalle}` : ''}`);
     const estado = err.codigo === 'FASTMOSS_PETICION' ? 422 : 503;
-    return new ErrorApp(estado, err.codigo, err.message);
+    return new ErrorApp(estado, err.codigo, err.message, { reintentable: err.reintentable });
   }
   console.error(`[fastmoss] ${que} falló:`, err);
   return new ErrorApp(503, 'FASTMOSS_FALLO', 'El buscador tuvo un problema. Intenta de nuevo en un momento.');
 }
 
 const sinLlave = () =>
-  new ErrorApp(503, 'FASTMOSS_SIN_LLAVE', 'El buscador todavía no está conectado. Ya quedó anotado para revisarlo.');
+  new ErrorApp(503, 'FASTMOSS_SIN_LLAVE', 'El buscador todavía no está conectado. Ya quedó anotado para revisarlo.', { reintentable: false });
 
 // ── Buscador ───────────────────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ export async function crearTendencias({ db, fastmoss, reloj, usuariaId }) {
         throw traducirErrorFastmoss(err, 'tendencias');
       }
       if (!r.productos.length) {
-        throw new ErrorApp(503, 'TENDENCIAS_VACIAS', 'Todavía no hay datos de esta semana. Intenta de nuevo mañana.');
+        throw new ErrorApp(503, 'TENDENCIAS_VACIAS', 'Todavía no hay datos de esta semana. Intenta de nuevo mañana.', { reintentable: false });
       }
       const { rows } = await db.query(
         `insert into tendencias_semana (id, semana, semana_datos, productos) values ($1, $2, $3, $4::jsonb)
