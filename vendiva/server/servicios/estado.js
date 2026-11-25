@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, MOTOR_VIDEO, PLANES, esPlanDePago, nivelPara, planFrenaEnCero } from '../../shared/datos.js';
 import { sinSesion } from '../errores.js';
-import { renovarSiToca, proximaRenovacion, semanaDe } from './creditos.js';
+import { pagoVozIA, renovarSiToca, proximaRenovacion, semanaDe } from './creditos.js';
 
 export function productoPublico(p) {
   return {
@@ -21,7 +21,7 @@ export function productoPublico(p) {
 }
 
 /** Un video con IA, tal como lo ve la usuaria (sin el enlace de Runway: se pide fresco al verlo). */
-export function videoPublico(v) {
+export function videoPublico(v, voz = null) {
   return {
     id: v.id,
     productoId: v.producto_id,
@@ -37,6 +37,8 @@ export function videoPublico(v) {
     guion: v.guion ? { conCamara: v.guion.conCamara, sinCamara: v.guion.sinCamara, textoEnPantalla: v.guion.textoEnPantalla } : null,
     prompt: v.prompt,
     falla: v.estado === 'fallido' ? v.falla : null,
+    // La voz del video (los de Runway salen sin sonido): la de ella o la de IA.
+    voz: voz ? { tipo: voz.tipo, creditosCobrados: voz.creditos_cobrados, creadoEn: voz.creado_en } : null,
     // Mientras no lo descargue, al abrirlo se le avisa que el enlace de Runway vence.
     descargado: Boolean(v.descargado_en),
     creadoEn: v.creado_en,
@@ -108,11 +110,14 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
         [usuariaId],
       )
     ).rows;
+    const voces = new Map(
+      (await t.query('select video_id, tipo, creditos_cobrados, creado_en from voces where usuaria_id = $1', [usuariaId])).rows.map((x) => [x.video_id, x]),
+    );
     const videos = {};
     for (const v of ultimosVideos) {
       if (!productos.some((p) => p.id === v.producto_id)) continue;
       const porProducto = (videos[v.producto_id] ??= { corto: [null, null, null], desde_foto: [null, null, null] });
-      porProducto[v.tipo][v.indice - 1] = videoPublico(v);
+      porProducto[v.tipo][v.indice - 1] = videoPublico(v, voces.get(v.id));
     }
 
     // Buscador: la última búsqueda con FastMoss, con los productos que ya guardó.
@@ -179,6 +184,8 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
         videoGratis: planFrenaEnCero(usuaria.plan)
           ? { incluido: true, disponible: !usuaria.video_gratis_usado, segundos: DURACION_VIDEO_SEGUNDOS }
           : { incluido: false, disponible: false, segundos: DURACION_VIDEO_SEGUNDOS },
+        // Voz de IA: cuánto cuesta, con qué se paga la próxima y cuántas lleva este mes (Gratis: 3).
+        vozIA: pagoVozIA(usuaria),
         periodo: usuaria.periodo_creditos,
         renuevaEl: proximaRenovacion(usuaria.periodo_creditos),
       },

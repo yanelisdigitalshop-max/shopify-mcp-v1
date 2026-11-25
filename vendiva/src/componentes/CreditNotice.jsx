@@ -15,8 +15,8 @@ function fechaLarga(iso) {
 function Fila({ etiqueta, valor, fuerte = false }) {
   return (
     <div className={`flex items-baseline justify-between gap-4 py-3 ${fuerte ? 'border-t border-stone-200' : ''}`}>
-      <dt className={`text-lg ${fuerte ? 'font-bold text-stone-900' : 'text-stone-700'}`}>{etiqueta}</dt>
-      <dd className={`tabular-nums ${fuerte ? 'text-2xl font-extrabold text-stone-900' : 'text-lg font-semibold text-stone-900'}`}>{valor}</dd>
+      <dt className={`shrink-0 whitespace-nowrap text-lg ${fuerte ? 'font-bold text-stone-900' : 'text-stone-700'}`}>{etiqueta}</dt>
+      <dd className={`text-right tabular-nums ${fuerte ? 'text-2xl font-extrabold text-stone-900' : 'text-lg font-semibold text-stone-900'}`}>{valor}</dd>
     </div>
   );
 }

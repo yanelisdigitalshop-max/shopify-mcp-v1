@@ -51,5 +51,10 @@ export function leerConfig(env = process.env) {
     runway: {
       llaveConfigurada: Boolean(texto(env.VENDIVA_RUNWAY_API_KEY)),
     },
+
+    // Voz de IA de los videos (Parte 4). Solo se guarda SI existe, nunca el valor.
+    elevenlabs: {
+      llaveConfigurada: Boolean(texto(env.VENDIVA_ELEVENLABS_API_KEY)),
+    },
   };
 }

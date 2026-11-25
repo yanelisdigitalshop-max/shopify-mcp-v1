@@ -44,7 +44,7 @@ export function crearRunwayFalso() {
     async bajarArchivo(url) {
       llamadas.push({ tipo: 'bajar', url });
       if (!vigentes.has(url)) return new Response('AccessDenied', { status: 403 });
-      const bytes = new Uint8Array(10 * 1024).fill(7);
+      const bytes = control.archivo ?? new Uint8Array(10 * 1024).fill(7);
       return new Response(bytes, { status: 200, headers: { 'content-type': 'video/mp4', 'content-length': String(bytes.length) } });
     },
     async consultarVideo(id) {

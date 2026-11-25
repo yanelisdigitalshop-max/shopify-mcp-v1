@@ -8,13 +8,14 @@
 //   - El enlace de Runway vence en 24 a 48 horas: mientras no lo descargue, al abrir el
 //     video sale una advertencia con el botón grande "Descargar video".
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, Clapperboard, Download, ImageOff, Image as IconoFoto, PlayCircle, Search, TriangleAlert, VolumeX } from 'lucide-react';
 import { DURACION_VIDEO_SEGUNDOS, MOTOR_VIDEO, TIPOS_VIDEO, VIDEOS_POR_TIPO, formatoNumero } from '../../shared/datos.js';
 import { CreditNotice } from '../componentes/CreditNotice.jsx';
 import { BotonCopiar, SelectorModo } from '../componentes/ScriptCard.jsx';
 import { AvisoError, Boton, Hoja, Puntos, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
+import { VozDelVideo } from '../componentes/VozDelVideo.jsx';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700';
 
@@ -168,6 +169,10 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
   const [advertencia, setAdvertencia] = useState(false);
   const [verSinDescargar, setVerSinDescargar] = useState(false); // solo mientras esté en esta pantalla
   const descarga = useAccion(() => acciones.descargarVideo(video.id), { alExito: () => setAdvertencia(false) });
+  const audioVoz = useRef(null);
+  const conVoz = (hacer) => {
+    if (audioVoz.current) hacer(audioVoz.current);
+  };
   const abrirAdvertencia = () => {
     descarga.limpiar();
     setAdvertencia(true);
@@ -219,20 +224,38 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
               <p className="text-base text-stone-700">No pudimos mostrar el video aquí. Descárgalo con el botón de abajo.</p>
             </div>
           ) : (
-            <video
-              src={enlace}
-              controls
-              playsInline
-              preload="metadata"
-              onError={() => setFallaVideo(true)}
-              className="mx-auto aspect-[9/16] max-h-96 w-auto max-w-full rounded-2xl bg-stone-900"
-              aria-label={`Video: ${video.titulo ?? nombre}`}
-            />
+            <>
+              <video
+                src={enlace}
+                controls
+                playsInline
+                preload="metadata"
+                onError={() => setFallaVideo(true)}
+                // Con voz: el audio suena junto al video (el de Runway no trae sonido).
+                onPlay={(e) => conVoz((a) => {
+                  a.currentTime = e.currentTarget.currentTime;
+                  a.play().catch(() => {});
+                })}
+                onPause={() => conVoz((a) => a.pause())}
+                onEnded={() => conVoz((a) => a.pause())}
+                onSeeked={(e) => conVoz((a) => {
+                  a.currentTime = e.currentTarget.currentTime;
+                })}
+                className="mx-auto aspect-[9/16] max-h-96 w-auto max-w-full rounded-2xl bg-stone-900"
+                aria-label={`Video: ${video.titulo ?? nombre}`}
+              />
+              {video.voz && (
+                // eslint-disable-next-line jsx-a11y/media-has-caption
+                <audio ref={audioVoz} src={`/api/videos/${video.id}/voz?v=${encodeURIComponent(video.voz.creadoEn)}`} preload="auto" className="hidden" />
+              )}
+            </>
           )}
-          <p className="flex items-start gap-2 text-base leading-snug text-stone-600">
-            <VolumeX className="mt-0.5 h-5 w-5 shrink-0 text-stone-500" aria-hidden="true" />
-            El video sale sin sonido. Tu voz la pones tú con el guion de abajo.
-          </p>
+          {!video.voz && (
+            <p className="flex items-start gap-2 text-base leading-snug text-stone-600">
+              <VolumeX className="mt-0.5 h-5 w-5 shrink-0 text-stone-500" aria-hidden="true" />
+              El video sale sin sonido. Ponle tu voz (gratis) o una voz de IA aquí abajo.
+            </p>
+          )}
 
           {video.descargado ? (
             <>
@@ -258,6 +281,7 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
             )
           )}
           {descarga.error && !advertencia && <AvisoError error={descarga.error} alReintentar={descarga.reintentar} reintentando={descarga.cargando} />}
+          <VozDelVideo video={video} nombre={nombre} producto={producto} irA={irA} />
           <GuionDelVideo video={video} modo={modo} alCambiarModo={alCambiarModo} />
         </div>
       )}

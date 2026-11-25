@@ -89,6 +89,11 @@ export function ProveedorEstado({ children }) {
       crearVideo: (productoId, tipo, indice, costoAceptado) =>
         guardar(api.post(`/productos/${productoId}/videos`, { tipo, indice, costoAceptado }, { esperaMs: ESPERA_IA_MS })),
 
+      // Voz de los videos: la de ella (grabada, gratis) o la de IA (ElevenLabs, con el costo aceptado).
+      guardarVozReal: (videoId, grabacion) => guardar(api.subir(`/videos/${videoId}/voz-real`, grabacion)),
+      crearVozIA: (videoId, costoAceptado) => guardar(api.post(`/videos/${videoId}/voz-ia`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
+      quitarVoz: (videoId) => guardar(api.del(`/videos/${videoId}/voz`)),
+
       // Baja el archivo al teléfono; el servidor lo marca como descargado y se trae el estado nuevo.
       async descargarVideo(videoId) {
         const r = await api.descargar(`/videos/${videoId}/descargar`);

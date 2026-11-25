@@ -25,13 +25,13 @@ test('planes: nombres, precios, créditos y tope de productos', () => {
 
 test('costos en créditos y paquetes', () => {
   assert.deepEqual(COSTOS_CREDITOS, {
-    guiones: 0, guionesExtraGratis: 1, videoCorto: 20, videoDesdeFoto: 20, gifs: 9, guionEnVivo: 10, respuestasComentarios: 3,
+    guiones: 0, guionesExtraGratis: 1, videoCorto: 20, videoDesdeFoto: 20, gifs: 9, guionEnVivo: 10, respuestasComentarios: 3, vozIA: 2,
   });
   assert.deepEqual(
     PAQUETES_CREDITOS.map((p) => [p.nombre, p.creditos, p.precio]),
     [['Chico', 100, 9], ['Mediano', 300, 24], ['Grande', 750, 49], ['Tienda', 2000, 99]],
   );
-  assert.deepEqual(LIMITES_GRATIS, { videoGratisMes: 1, busquedasMes: 60, guionesMes: 100 });
+  assert.deepEqual(LIMITES_GRATIS, { videoGratisMes: 1, busquedasMes: 60, guionesMes: 100, vocesIAMes: 3 });
 });
 
 test('créditos del mes: texto y video por separado (Gratis solo texto; pago mitad y mitad)', () => {

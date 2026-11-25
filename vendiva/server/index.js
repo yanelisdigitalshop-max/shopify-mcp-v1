@@ -52,6 +52,7 @@ async function main() {
     console.log(`  Claude: ${config.anthropic.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_ANTHROPIC_API_KEY)'}`);
     console.log(`  FastMoss: ${config.fastmoss.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_FASTMOSS_CLIENT_SECRET)'}`);
     console.log(`  Runway: ${config.runway.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_RUNWAY_API_KEY)'}`);
+    console.log(`  ElevenLabs: ${config.elevenlabs.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_ELEVENLABS_API_KEY)'}`);
   });
 
   // Recoge los videos que Runway termina (tardan de 1 a 5 minutos).

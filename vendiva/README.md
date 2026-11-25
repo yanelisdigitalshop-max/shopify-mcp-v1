@@ -86,6 +86,8 @@ Variables de entorno (ver `.env.example`):
 | `VENDIVA_ANTHROPIC_API_KEY` | Llave de Claude (Paso 0). También vale `ANTHROPIC_API_KEY` | Desde la Parte 2 |
 | `VENDIVA_FASTMOSS_CLIENT_SECRET` | `client_secret` de FastMoss (buscador y tendencias) | Desde la Parte 3 |
 | `VENDIVA_RUNWAY_API_KEY` | Llave de la API de Runway (videos con IA) | Desde la Parte 4 |
+| `VENDIVA_ELEVENLABS_API_KEY` | Llave de la API de ElevenLabs (voz de IA de los videos) | Desde la Parte 4 |
+| `VENDIVA_ELEVENLABS_VOICE_ID` | La voz de IA elegida (femenina, español). Vacía = voz prediseñada | No, pero recomendada |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
 | `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-haiku-5-5` | No |
 | `PORT` | Puerto. Por defecto 3000 | No |
@@ -108,6 +110,9 @@ server/
   ia/guionista.js      Lo que se le pide a Claude y la revisión de lo que devuelve
   fuentes/fastmoss.js  Conexión con la API de FastMoss (buscador y más vendidos de la semana)
   fuentes/runway.js    Conexión con la API de Runway (videos desde la foto)
+  fuentes/elevenlabs.js Conexión con la API de ElevenLabs (voz de IA)
+  servicios/voces.js   Voz real y voz de IA de cada video
+  servicios/mezcla.js  Une la voz con el video al descargarlo (ffmpeg)
   servicios/videos.js  Crear videos, revisar los que Runway termina y devolver créditos si fallan
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
@@ -177,6 +182,18 @@ Reglas:
 - **Producto sin foto:** se explica y se ofrece el buscador.
 - **Advertencia de descarga:** mientras ella no descargue un video, al abrirlo sale «Descarga tu video ahora» (el enlace de Runway vence en 24 a 48 horas; si Runway borra el video se pierde y habría que crearlo de nuevo gastando créditos) con el botón grande «Descargar video». Sale cada vez que abre un video sin descargar. `GET /api/videos/:id/descargar` pasa el archivo de Runway directo al teléfono (no se guarda en el servidor) y, cuando llegó completo, marca el video como descargado (`videos.descargado_en`).
 - **No hay publicación automática en TikTok.**
+
+### Voz de los videos
+
+Los videos de Runway salen sin sonido. Cada video listo tiene «Voz del video»:
+
+- **Voz real (la principal):** ella graba su voz en la app leyendo el guion (hasta 10 segundos, lo que dura el video). Gratis, sin créditos y sin límite. Se escucha junto al video en la app.
+- **Voz de IA (ElevenLabs):** narra lo que «se escucha» del guion sin cámara con una voz femenina en español. **2 créditos de texto**, siempre con el aviso antes (costo, saldo y lo que queda); nada se genera hasta «Sí, crear». Si ElevenLabs falla, se devuelve todo y el uso no cuenta.
+  - **Plan Gratis:** 3 voces de IA al mes con sus créditos de texto. Desde la 4.ª, solo con créditos de paquete; si no tiene, frena con «compra créditos o sube de plan». Vuelven a 3 el día 1.
+  - **Planes de pago:** sin límite; los créditos de texto siguen su regla de siempre (no frenan).
+- **ElevenLabs** (`server/fuentes/elevenlabs.js`), verificado en su SDK oficial (github.com/elevenlabs/elevenlabs-js) el 25 nov 2026: `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_128`, cabecera `xi-api-key`, modelo `eleven_multilingual_v2`. Precio de lista cerca de 0,10 USD por 1.000 caracteres: unos 2 centavos por narración. Nunca se reintenta solo.
+- **Cada video tiene una sola voz;** la nueva reemplaza a la anterior. El audio (unos 10 segundos) se guarda en la base (`voces`) para unirlo al video.
+- **Al descargar**, ffmpeg une la voz con el video en una carpeta temporal que se borra al terminar; el archivo sale con `-con-voz.mp4`. El video sigue sin guardarse en el servidor. Si la voz cambia, el video vuelve a «sin descargar» para que baje el nuevo. El `Dockerfile` instala ffmpeg.
 
 ## Decisiones de la dueña sobre la Parte 1
 

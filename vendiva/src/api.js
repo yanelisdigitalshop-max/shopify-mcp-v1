@@ -28,7 +28,7 @@ export function reintentableDe(estado, error) {
   return estado >= 500 || estado === 429 || !error;
 }
 
-async function pedir(metodo, ruta, cuerpo, { esperaMs = ESPERA_MAXIMA_MS } = {}) {
+async function pedir(metodo, ruta, cuerpo, { esperaMs = ESPERA_MAXIMA_MS, archivo = null } = {}) {
   const control = new AbortController();
   const reloj = setTimeout(() => control.abort(), esperaMs);
   let respuesta;
@@ -40,9 +40,9 @@ async function pedir(metodo, ruta, cuerpo, { esperaMs = ESPERA_MAXIMA_MS } = {})
       headers: {
         Accept: 'application/json',
         ...(metodo === 'GET' ? {} : { 'X-Vendiva': '1' }),
-        ...(cuerpo === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(archivo ? { 'Content-Type': archivo.type || 'application/octet-stream' } : cuerpo === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      body: archivo ?? (cuerpo === undefined ? undefined : JSON.stringify(cuerpo)),
     });
   } catch {
     throw new ErrorApi({
@@ -129,4 +129,6 @@ export const api = {
   patch: (ruta, cuerpo = {}) => pedir('PATCH', ruta, cuerpo),
   del: (ruta) => pedir('DELETE', ruta),
   descargar,
+  // Sube un archivo tal cual (por ejemplo, la grabación de su voz).
+  subir: (ruta, archivo, opciones) => pedir('POST', ruta, undefined, { esperaMs: 60000, ...opciones, archivo }),
 };

@@ -35,6 +35,7 @@ export const COSTOS_CREDITOS = {
   gifs: 9, // 3 GIFs (créditos de texto)
   guionEnVivo: 10, // 1 guion de en vivo
   respuestasComentarios: 3, // 3 respuestas para comentarios
+  vozIA: 2, // 1 narración con voz de IA (ElevenLabs), créditos de texto; decisión de la dueña, 25 nov 2026
 };
 
 // Lo que la IA escribe en la Parte 2 y lo que cuesta cada cosa.
@@ -61,6 +62,11 @@ export const TIPOS_VIDEO = {
  */
 export const videoFrenaEnCero = () => true;
 
+// Voz de los videos (Parte 4). Voz real: ella graba su voz en la app, gratis y sin límite.
+// Voz de IA: ElevenLabs narra el guion con una voz femenina en español (2 créditos de texto).
+export const MOTOR_VOZ = { id: 'elevenlabs', nombre: 'ElevenLabs' };
+export const VOZ_REAL_MAX_SEGUNDOS = DURACION_VIDEO_SEGUNDOS; // lo que dura el video
+
 /** Esencial, Crecimiento y Pro. Tendencias, buscador sin límite y productos sin tope son solo de pago. */
 export const esPlanDePago = (planId) => planId !== 'gratis';
 
@@ -83,6 +89,7 @@ export const LIMITES_GRATIS = {
   videoGratisMes: 1, // 1 video corto de 10 segundos al mes, sin créditos: el gancho para pasarse a pago
   busquedasMes: 60, // buscador de productos (FastMoss); decisión de la dueña, 13 nov 2026
   guionesMes: 100, // veces que puede tocar "Crear mis 3 guiones" en el mes
+  vocesIAMes: 3, // narraciones con voz de IA al mes; para más, créditos de paquete o subir de plan
 };
 
 // Los 9 niveles por seguidores. `max: null` = sin techo.
