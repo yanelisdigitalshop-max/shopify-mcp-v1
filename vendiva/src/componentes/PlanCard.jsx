@@ -1,6 +1,6 @@
-// Tarjeta de un plan. Muestra solo los datos fijos: precio, créditos y productos.
+// Tarjeta de un plan. Muestra solo los datos fijos: precio, créditos (texto y video) y productos.
 
-import { LIMITES_GRATIS, formatoNumero, planFrenaEnCero } from '../../shared/datos.js';
+import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, formatoNumero, planFrenaEnCero } from '../../shared/datos.js';
 
 export function PlanCard({ plan, actual = false }) {
   return (
@@ -21,6 +21,16 @@ export function PlanCard({ plan, actual = false }) {
         <div className="flex items-baseline justify-between gap-3">
           <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>Créditos al mes</dt>
           <dd className="font-bold tabular-nums">{formatoNumero(plan.creditosMes)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3 pl-3">
+          <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>De texto</dt>
+          <dd className="font-semibold tabular-nums">{formatoNumero(plan.creditosTextoMes)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3 pl-3">
+          <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>De video</dt>
+          <dd className="text-right font-semibold tabular-nums">
+            {plan.creditosVideoMes > 0 ? formatoNumero(plan.creditosVideoMes) : `${LIMITES_GRATIS.videoGratisMes} video gratis de ${DURACION_VIDEO_SEGUNDOS} s`}
+          </dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>Productos</dt>

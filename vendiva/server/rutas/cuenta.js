@@ -51,7 +51,8 @@ export function rutasCuenta({ db, config, reloj }) {
     const id = crypto.randomUUID();
     const hash = await crearHash(datos.contrasena, config.scrypt);
     const periodo = periodoDe(reloj());
-    const creditos = PLANES[PLAN_INICIAL].creditosMes;
+    const creditos = PLANES[PLAN_INICIAL].creditosTextoMes;
+    const creditosVideo = PLANES[PLAN_INICIAL].creditosVideoMes;
 
     try {
       await db.tx(async (t) => {
@@ -59,10 +60,10 @@ export function rutasCuenta({ db, config, reloj }) {
         if (existe.rows.length) throw CORREO_EN_USO();
 
         await t.query(
-          `insert into usuarias (id, correo, contrasena_hash, nombre, telefono, plan, creditos_plan, periodo_creditos, mayor_de_edad_confirmada_en)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          `insert into usuarias (id, correo, contrasena_hash, nombre, telefono, plan, creditos_plan, creditos_video_plan, periodo_creditos, mayor_de_edad_confirmada_en)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           // La validación ya exigió la casilla de 18 años; se guarda el momento en que la marcó.
-          [id, datos.correo, hash, datos.nombre, datos.telefono, PLAN_INICIAL, creditos, periodo, reloj()],
+          [id, datos.correo, hash, datos.nombre, datos.telefono, PLAN_INICIAL, creditos, creditosVideo, periodo, reloj()],
         );
         await t.query('insert into perfiles (usuaria_id) values ($1)', [id]);
         await anotarMovimiento(t, { usuariaId: id, bolsa: 'plan', cantidad: creditos, motivo: 'alta', periodo });

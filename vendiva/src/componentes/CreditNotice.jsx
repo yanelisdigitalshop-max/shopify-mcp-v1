@@ -21,7 +21,7 @@ function Fila({ etiqueta, valor, fuerte = false }) {
   );
 }
 
-const creditos = (n) => `${formatoNumero(n)} ${n === 1 ? 'crédito' : 'créditos'}`;
+const enCreditos = (n, unidad) => `${formatoNumero(n)} ${n === 1 ? 'crédito' : 'créditos'}${unidad ? ` ${unidad}` : ''}`;
 
 /**
  * @param {object} p
@@ -30,16 +30,41 @@ const creditos = (n) => `${formatoNumero(n)} ${n === 1 ? 'crédito' : 'créditos
  * @param {number} p.costo
  * @param {{ total: number, renuevaEl: string }} p.saldo
  * @param {{ id: string, nombre: string }} p.plan
- * @param {boolean} [p.gratis]      la creación entra en sus videos gratis del mes (Parte 4)
+ * @param {boolean} [p.gratis]      la creación entra en su video gratis del mes (Parte 4)
+ * @param {string} [p.unidad]      'de video' para los videos: se cobran de otra bolsa
+ * @param {boolean} [p.frenaSiempre] los videos frenan en cero en TODOS los planes
+ * @param {string} [p.tituloFreno]  título del aviso cuando no alcanza
+ * @param {string} [p.detalleFreno] la línea de abajo en ese aviso
  * @param {string} [p.nota]         algo que conviene saber antes de gastar
  * @param {boolean} p.creando
  * @param {string} p.textoCreando   "Escribiendo tu guion para el en vivo…"
  * @param {object} [p.error]
  */
-export function CreditNotice({ abierta, alCerrar, queSeCrea, paraQue, costo, saldo, plan, gratis = false, nota, creando, textoCreando, error, alConfirmar, irAPlanes }) {
+export function CreditNotice({
+  abierta,
+  alCerrar,
+  queSeCrea,
+  paraQue,
+  costo,
+  saldo,
+  plan,
+  gratis = false,
+  unidad = '',
+  frenaSiempre = false,
+  tituloFreno = 'Ya se te terminó lo gratis de este mes',
+  detalleFreno,
+  nota,
+  creando,
+  textoCreando,
+  esperaCreando = 'Puede tardar hasta medio minuto. No cierres esta pantalla.',
+  error,
+  alConfirmar,
+  irAPlanes,
+}) {
+  const creditos = (n) => enCreditos(n, unidad);
   const cuesta = gratis ? 0 : costo;
   const alcanza = saldo.total >= cuesta;
-  const frena = !alcanza && planFrenaEnCero(plan.id);
+  const frena = !alcanza && (frenaSiempre || planFrenaEnCero(plan.id));
   const despues = Math.max(0, saldo.total - cuesta);
   // Si el servidor frenó (por ejemplo, gastó desde otro teléfono), se muestra el mismo aviso de "se terminó".
   const frenoDelServidor = error?.codigo === 'CREDITOS_INSUFICIENTES';
@@ -48,20 +73,20 @@ export function CreditNotice({ abierta, alCerrar, queSeCrea, paraQue, costo, sal
     return (
       <Hoja abierta={abierta} alCerrar={() => {}} titulo={queSeCrea}>
         <LoadingPulse texto={textoCreando} lineas={2} className="pb-2" />
-        <p className="mt-4 text-base text-stone-600">Puede tardar hasta medio minuto. No cierres esta pantalla.</p>
+        <p className="mt-4 text-base text-stone-600">{esperaCreando}</p>
       </Hoja>
     );
   }
 
   if (frena || frenoDelServidor) {
     return (
-      <Hoja abierta={abierta} alCerrar={alCerrar} titulo="Ya se te terminó lo gratis de este mes">
+      <Hoja abierta={abierta} alCerrar={alCerrar} titulo={tituloFreno}>
         <p className="text-lg leading-snug text-stone-700">
           <strong className="font-semibold text-stone-900">{queSeCrea}</strong> cuesta {creditos(costo)} y te {saldo.total === 1 ? 'queda' : 'quedan'}{' '}
           <strong className="font-semibold text-stone-900">{formatoNumero(saldo.total)}</strong>. No se creó ni se cobró nada.
         </p>
         <p className="mt-3 text-base leading-snug text-stone-600">
-          Tus créditos del plan se renuevan solos el {fechaLarga(saldo.renuevaEl)}.
+          {detalleFreno ?? `Tus créditos${unidad ? ` ${unidad}` : ''} del plan se renuevan solos el ${fechaLarga(saldo.renuevaEl)}.`}
         </p>
         <div className="mt-6 space-y-3">
           <Boton onClick={irAPlanes}>Comprar créditos y seguir creando</Boton>
@@ -92,7 +117,7 @@ export function CreditNotice({ abierta, alCerrar, queSeCrea, paraQue, costo, sal
         <Fila etiqueta="Te quedan" valor={creditos(despues)} fuerte />
       </dl>
 
-      {gratis && <p className="mt-3 text-base leading-snug text-stone-600">Entra en tus videos gratis de este mes: no gasta créditos.</p>}
+      {gratis && <p className="mt-3 text-base leading-snug text-stone-600">Es tu video gratis de este mes: no gasta créditos.</p>}
       {!alcanza && !gratis && (
         <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-3 text-base leading-snug text-amber-950">
           Tu saldo no alcanza, pero el plan {plan.nombre} no frena: se descuenta lo que te queda y se crea igual.

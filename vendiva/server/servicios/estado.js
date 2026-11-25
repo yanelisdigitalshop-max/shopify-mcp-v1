@@ -2,7 +2,7 @@
 // El servidor es la fuente de verdad: cada cambio devuelve este mismo objeto.
 
 import crypto from 'node:crypto';
-import { LIMITES_GRATIS, PLANES, esPlanDePago, nivelPara, planFrenaEnCero } from '../../shared/datos.js';
+import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, MOTOR_VIDEO, PLANES, esPlanDePago, nivelPara, planFrenaEnCero } from '../../shared/datos.js';
 import { sinSesion } from '../errores.js';
 import { renovarSiToca, proximaRenovacion, semanaDe } from './creditos.js';
 
@@ -15,7 +15,29 @@ export function productoPublico(p) {
     comisionPct: p.comision_pct == null ? null : Number(p.comision_pct),
     enlace: p.enlace,
     origen: p.origen,
+    imagen: p.imagen_url ?? null,
     creadoEn: p.creado_en,
+  };
+}
+
+/** Un video con IA, tal como lo ve la usuaria (sin el enlace de Runway: se pide fresco al verlo). */
+export function videoPublico(v) {
+  return {
+    id: v.id,
+    productoId: v.producto_id,
+    tipo: v.tipo,
+    indice: v.indice,
+    estado: v.estado,
+    motor: MOTOR_VIDEO.nombre,
+    modelo: MOTOR_VIDEO.modelo,
+    duracion: v.duracion,
+    gratis: v.gratis,
+    creditosCobrados: v.creditos_cobrados,
+    titulo: v.guion?.titulo ?? null,
+    guion: v.guion ? { conCamara: v.guion.conCamara, sinCamara: v.guion.sinCamara, textoEnPantalla: v.guion.textoEnPantalla } : null,
+    prompt: v.prompt,
+    falla: v.estado === 'fallido' ? v.falla : null,
+    creadoEn: v.creado_en,
   };
 }
 
@@ -76,6 +98,21 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
 
     const plan = PLANES[usuaria.plan];
 
+    // Videos con IA: el último de cada lugar (producto, tipo, 1 a 3).
+    const ultimosVideos = (
+      await t.query(
+        `select distinct on (producto_id, tipo, indice) * from videos
+          where usuaria_id = $1 order by producto_id, tipo, indice, creado_en desc`,
+        [usuariaId],
+      )
+    ).rows;
+    const videos = {};
+    for (const v of ultimosVideos) {
+      if (!productos.some((p) => p.id === v.producto_id)) continue;
+      const porProducto = (videos[v.producto_id] ??= { corto: [null, null, null], desde_foto: [null, null, null] });
+      porProducto[v.tipo][v.indice - 1] = videoPublico(v);
+    }
+
     // Buscador: la última búsqueda con FastMoss, con los productos que ya guardó.
     const ultimaBusqueda = (
       await t.query("select * from busquedas where usuaria_id = $1 and resultado ? 'productos' order by creado_en desc limit 1", [usuariaId])
@@ -127,14 +164,25 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
       nivel: nivelPara(perfil.seguidores),
       plan,
       creditos: {
+        // "plan" y "total" son los créditos de TEXTO (guion de en vivo, respuestas, GIFs, guiones extra).
         plan: usuaria.creditos_plan,
-        paquete: usuaria.creditos_paquete,
-        total: usuaria.creditos_plan + usuaria.creditos_paquete,
+        total: usuaria.creditos_plan,
+        // Créditos de VIDEO: los del plan y los de paquetes (que no vencen).
+        video: {
+          plan: usuaria.creditos_video_plan,
+          paquete: usuaria.creditos_paquete,
+          total: usuaria.creditos_video_plan + usuaria.creditos_paquete,
+        },
+        // Plan Gratis: 1 video corto de 10 segundos al mes, sin créditos.
+        videoGratis: planFrenaEnCero(usuaria.plan)
+          ? { incluido: true, disponible: !usuaria.video_gratis_usado, segundos: DURACION_VIDEO_SEGUNDOS }
+          : { incluido: false, disponible: false, segundos: DURACION_VIDEO_SEGUNDOS },
         periodo: usuaria.periodo_creditos,
         renuevaEl: proximaRenovacion(usuaria.periodo_creditos),
       },
       productos: productos.map(productoPublico),
       creaciones,
+      videos,
       buscador,
       tendencias,
       limites: {

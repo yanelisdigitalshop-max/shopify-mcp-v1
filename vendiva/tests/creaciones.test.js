@@ -169,7 +169,7 @@ test('plan Gratis pasado el tope: cada "Crear mis 3 guiones" extra cuesta 1 cré
   assert.equal(otra.json.estado.creditos.total, 28);
 });
 
-test('guion extra: sin créditos no deja crear; con créditos de paquete sí', async () => {
+test('guion extra: sin créditos de texto no deja crear; los créditos de video no sirven para texto', async () => {
   const { c, usuariaId, productoId } = await conProducto();
   await s.db.query('update usuarias set guiones_mes = 100, creditos_plan = 0, creditos_paquete = 0 where id = $1', [usuariaId]);
   const r = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
@@ -180,10 +180,17 @@ test('guion extra: sin créditos no deja crear; con créditos de paquete sí', a
   assert.equal(await cuantas(usuariaId), 0);
   assert.equal((await c.get('/api/estado')).json.estado.limites.guionesUsados, 100);
 
-  await s.db.query('update usuarias set creditos_paquete = 5 where id = $1', [usuariaId]);
-  const conPaquete = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
-  assert.equal(conPaquete.estado, 201);
-  assert.deepEqual({ plan: conPaquete.json.estado.creditos.plan, paquete: conPaquete.json.estado.creditos.paquete }, { plan: 0, paquete: 4 });
+  // Los paquetes (y los créditos de video del plan) son de VIDEO: no pagan texto.
+  await s.db.query('update usuarias set creditos_paquete = 5, creditos_video_plan = 5 where id = $1', [usuariaId]);
+  const conVideo = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(conVideo.estado, 402);
+  assert.equal((await c.get('/api/estado')).json.estado.creditos.video.total, 10, 'no se tocaron');
+
+  await s.db.query('update usuarias set creditos_plan = 2 where id = $1', [usuariaId]);
+  const conTexto = await c.post(`/api/productos/${productoId}/guiones`, { costoAceptado: 1 });
+  assert.equal(conTexto.estado, 201);
+  assert.equal(conTexto.json.estado.creditos.total, 1);
+  assert.equal(conTexto.json.estado.creditos.video.total, 10);
 });
 
 test('guion extra: si la IA falla, se devuelve el crédito y el intento no cuenta', async () => {
@@ -375,16 +382,19 @@ test('plan Gratis: con el saldo justo sí crea y queda en cero', async () => {
   assert.equal(r.json.estado.creditos.total, 0);
 });
 
-test('primero se gastan los créditos del plan y después los de paquete', async () => {
+test('el texto se paga solo con créditos de texto: los de video y los paquetes no se tocan', async () => {
   const { c, usuariaId, productoId } = await conProducto();
   await ponerSaldo(usuariaId, 4, 100);
   const r = await c.post(`/api/productos/${productoId}/guion-en-vivo`, { costoAceptado: 10 });
-  assert.equal(r.estado, 201);
-  assert.deepEqual({ plan: r.json.estado.creditos.plan, paquete: r.json.estado.creditos.paquete }, { plan: 0, paquete: 94 });
-  assert.deepEqual(await movimientos(usuariaId), [
-    { bolsa: 'paquete', cantidad: -6, motivo: 'guion_en_vivo' },
-    { bolsa: 'plan', cantidad: -4, motivo: 'guion_en_vivo' },
-  ]);
+  assert.equal(r.estado, 402, 'Gratis con 4 de texto no alcanza, aunque tenga 100 de video');
+  assert.equal((await saldo(c)).video.paquete, 100);
+
+  await ponerSaldo(usuariaId, 14, 100);
+  const ok = await c.post(`/api/productos/${productoId}/guion-en-vivo`, { costoAceptado: 10 });
+  assert.equal(ok.estado, 201);
+  assert.equal(ok.json.estado.creditos.total, 4);
+  assert.equal(ok.json.estado.creditos.video.paquete, 100);
+  assert.deepEqual(await movimientos(usuariaId), [{ bolsa: 'plan', cantidad: -10, motivo: 'guion_en_vivo' }]);
 });
 
 test('planes de pago: no frenan. Se descuenta hasta cero y la creación sale igual', async () => {
@@ -405,14 +415,14 @@ test('planes de pago: no frenan. Se descuenta hasta cero y la creación sale igu
 
 test('si la IA falla, se devuelven los créditos y no queda nada a medias', async () => {
   const { c, usuariaId, productoId } = await conProducto();
-  await ponerSaldo(usuariaId, 4, 20);
+  await ponerSaldo(usuariaId, 24, 20);
 
   comportamiento.responder = () => new ErrorIA('IA_OCUPADA', 'La inteligencia artificial está muy ocupada en este momento. Intenta de nuevo en un minuto.', { reintentable: true });
   const r = await c.post(`/api/productos/${productoId}/guion-en-vivo`, { costoAceptado: 10 });
   assert.equal(r.estado, 503);
   assert.match(r.json.error.mensaje, /No se gastó ningún crédito/);
   const despues = await saldo(c);
-  assert.deepEqual({ plan: despues.plan, paquete: despues.paquete }, { plan: 4, paquete: 20 }, 'cada crédito vuelve a su bolsa');
+  assert.deepEqual({ plan: despues.plan, paquete: despues.video.paquete }, { plan: 24, paquete: 20 }, 'cada crédito vuelve a su bolsa');
   assert.equal(await cuantas(usuariaId), 0);
   const suma = (await movimientos(usuariaId)).reduce((n, m) => n + m.cantidad, 0);
   assert.equal(suma, 0, 'el libro queda cuadrado: cobro y devolución');

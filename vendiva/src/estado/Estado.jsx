@@ -83,12 +83,44 @@ export function ProveedorEstado({ children }) {
         guardar(api.post(`/productos/${productoId}/guion-en-vivo`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
       crearRespuestas: (productoId, costoAceptado) =>
         guardar(api.post(`/productos/${productoId}/respuestas-comentarios`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
+      crearGifs: (productoId, costoAceptado) => guardar(api.post(`/productos/${productoId}/gifs`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
+
+      // Parte 4: videos con IA (Runway). Se piden aquí; Runway los termina en 1 a 5 minutos.
+      crearVideo: (productoId, tipo, indice, costoAceptado) =>
+        guardar(api.post(`/productos/${productoId}/videos`, { tipo, indice, costoAceptado }, { esperaMs: ESPERA_IA_MS })),
+
+      // Trae el estado otra vez sin mostrar "cargando" (para ver si un video ya quedó listo).
+      async refrescar() {
+        try {
+          const r = await api.get('/estado');
+          despachar({ tipo: 'estado', estado: r.estado });
+        } catch (error) {
+          if (error.estado === 401) despachar({ tipo: 'sesionVencida' });
+          // Sin internet un momento: se vuelve a intentar en la próxima vuelta.
+        }
+      },
     };
   }, []);
 
   useEffect(() => {
     acciones.cargar();
   }, [acciones]);
+
+  // Mientras haya un video creándose, se revisa cada 10 segundos (aunque ella esté en otra pestaña de la app).
+  const hayVideoEnCurso = useMemo(() => {
+    const videos = estado.datos?.videos;
+    if (!videos) return false;
+    return Object.values(videos).some((porTipo) =>
+      Object.values(porTipo).some((lista) => lista.some((v) => v && (v.estado === 'preparando' || v.estado === 'procesando'))),
+    );
+  }, [estado.datos]);
+  useEffect(() => {
+    if (!hayVideoEnCurso) return undefined;
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') acciones.refrescar();
+    }, 10000);
+    return () => clearInterval(t);
+  }, [hayVideoEnCurso, acciones]);
 
   const valor = useMemo(() => ({ ...estado, acciones }), [estado, acciones]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

@@ -17,6 +17,7 @@ const RUTAS = {
   guiones: 'guiones',
   'guion-en-vivo': 'guion_en_vivo',
   'respuestas-comentarios': 'respuestas_comentarios',
+  gifs: 'gifs',
 };
 
 export function rutasCreaciones({ db, reloj, ia }) {

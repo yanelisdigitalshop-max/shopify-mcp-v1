@@ -1,11 +1,12 @@
 // Créditos: dos bolsas.
 //   - del plan: llegan solos el día 1 de cada mes (el saldo se repone, no se acumula).
 //   - de paquete: se compran aparte y no vencen.
-// Entran por el alta y la renovación; salen al crear lo que cuesta créditos
-// (guion de en vivo, respuestas a comentarios). Los guiones nunca gastan.
+// Entran por el alta y la renovación; salen al crear lo que cuesta créditos.
+// Dos tipos: de TEXTO (guion de en vivo, respuestas, GIFs, guiones extra) y de
+// VIDEO (videos con IA). Los guiones normales y las búsquedas nunca gastan.
 
 import crypto from 'node:crypto';
-import { PLANES, ZONA_HORARIA, planFrenaEnCero } from '../../shared/datos.js';
+import { PLANES, ZONA_HORARIA, planFrenaEnCero, videoFrenaEnCero } from '../../shared/datos.js';
 import { ErrorApp } from '../errores.js';
 
 /** 'AAAA-MM' en la hora de Florida. */
@@ -63,51 +64,74 @@ export async function anotarMovimiento(t, { usuariaId, bolsa, cantidad, motivo, 
   );
 }
 
+// Columnas de cada bolsa. El orden es el orden en que se gastan.
+const BOLSAS = {
+  texto: [{ columna: 'creditos_plan', bolsa: 'plan' }],
+  video: [
+    { columna: 'creditos_video_plan', bolsa: 'video_plan' }, // se repone el día 1
+    { columna: 'creditos_paquete', bolsa: 'paquete' }, // paquetes comprados: no vencen
+  ],
+};
+
+export function saldoDe(usuaria, tipo = 'texto') {
+  return BOLSAS[tipo].reduce((n, b) => n + usuaria[b.columna], 0);
+}
+
 /**
  * Cobra una creación. Se llama con la fila de la usuaria bloqueada y ya renovada.
  *
- * - Primero se gastan los créditos del plan (se reponen el día 1) y después los de paquete (no vencen).
- * - Plan Gratis: si el saldo no alcanza, frena y no cobra nada.
- * - Planes de pago: no frenan. Se descuenta lo que haya, hasta cero, y la creación sale igual.
+ * - Texto (guion de en vivo, respuestas, GIFs, guiones extra): créditos de texto del plan.
+ *   Gratis frena si no alcanza; los planes de pago no frenan (decisión de la dueña).
+ * - Video: primero los créditos de video del plan y después los de paquete.
+ *   Frena en todos los planes si no alcanza (cada video cuesta dinero real en Runway).
  *
- * @returns {{ delPlan: number, delPaquete: number, total: number }} lo cobrado de cada bolsa
+ * @param {'texto'|'video'} [p.tipo]
+ * @returns {{ partes: {columna: string, bolsa: string, cantidad: number}[], total: number }}
  */
-export async function cobrar(t, usuaria, { costo, motivo, referencia }) {
-  const saldo = usuaria.creditos_plan + usuaria.creditos_paquete;
+export async function cobrar(t, usuaria, { costo, motivo, referencia, tipo = 'texto' }) {
+  const saldo = saldoDe(usuaria, tipo);
+  const frena = tipo === 'video' ? videoFrenaEnCero(usuaria.plan) : planFrenaEnCero(usuaria.plan);
+  const unidad = tipo === 'video' ? 'créditos de video' : 'créditos';
 
-  if (saldo < costo && planFrenaEnCero(usuaria.plan)) {
+  if (saldo < costo && frena) {
     throw new ErrorApp(
       402,
       'CREDITOS_INSUFICIENTES',
-      `Ya se te terminó lo gratis de este mes. Esto cuesta ${costo} ${costo === 1 ? 'crédito' : 'créditos'} y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`,
-      { datos: { costo, saldo, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
+      tipo === 'video'
+        ? `No te alcanzan los créditos de video. Esto cuesta ${costo} y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`
+        : `Ya se te terminó lo gratis de este mes. Esto cuesta ${costo} ${costo === 1 ? 'crédito' : 'créditos'} y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`,
+      { datos: { costo, saldo, tipo, unidad, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
     );
   }
 
-  const total = Math.min(costo, saldo);
-  const delPlan = Math.min(usuaria.creditos_plan, total);
-  const delPaquete = total - delPlan;
-
-  if (total > 0) {
-    await t.query(
-      'update usuarias set creditos_plan = creditos_plan - $2, creditos_paquete = creditos_paquete - $3, actualizada_en = now() where id = $1',
-      [usuaria.id, delPlan, delPaquete],
-    );
-    if (delPlan > 0) await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'plan', cantidad: -delPlan, motivo, periodo: usuaria.periodo_creditos, referencia });
-    if (delPaquete > 0) await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'paquete', cantidad: -delPaquete, motivo, referencia });
+  let restante = Math.min(costo, saldo);
+  const partes = [];
+  for (const b of BOLSAS[tipo]) {
+    const cantidad = Math.min(usuaria[b.columna], restante);
+    if (cantidad > 0) partes.push({ ...b, cantidad });
+    restante -= cantidad;
   }
-  return { delPlan, delPaquete, total };
+  for (const p of partes) {
+    await t.query(`update usuarias set ${p.columna} = ${p.columna} - $2, actualizada_en = now() where id = $1`, [usuaria.id, p.cantidad]);
+    await anotarMovimiento(t, {
+      usuariaId: usuaria.id,
+      bolsa: p.bolsa,
+      cantidad: -p.cantidad,
+      motivo,
+      periodo: p.bolsa === 'paquete' ? null : usuaria.periodo_creditos,
+      referencia,
+    });
+  }
+  return { partes, total: partes.reduce((n, p) => n + p.cantidad, 0) };
 }
 
 /** Devuelve exactamente lo cobrado, a la misma bolsa, cuando la creación no se pudo entregar. */
 export async function devolver(t, usuariaId, cobro, { referencia }) {
   if (!cobro || cobro.total === 0) return;
-  await t.query(
-    'update usuarias set creditos_plan = creditos_plan + $2, creditos_paquete = creditos_paquete + $3, actualizada_en = now() where id = $1',
-    [usuariaId, cobro.delPlan, cobro.delPaquete],
-  );
-  if (cobro.delPlan > 0) await anotarMovimiento(t, { usuariaId, bolsa: 'plan', cantidad: cobro.delPlan, motivo: 'devolucion', referencia });
-  if (cobro.delPaquete > 0) await anotarMovimiento(t, { usuariaId, bolsa: 'paquete', cantidad: cobro.delPaquete, motivo: 'devolucion', referencia });
+  for (const p of cobro.partes) {
+    await t.query(`update usuarias set ${p.columna} = ${p.columna} + $2, actualizada_en = now() where id = $1`, [usuariaId, p.cantidad]);
+    await anotarMovimiento(t, { usuariaId, bolsa: p.bolsa, cantidad: p.cantidad, motivo: 'devolucion', referencia });
+  }
 }
 
 /**
@@ -119,12 +143,33 @@ export async function renovarSiToca(t, usuaria, ahora = new Date()) {
   const periodo = periodoDe(ahora);
   if (usuaria.periodo_creditos === periodo) return usuaria;
 
-  const creditos = PLANES[usuaria.plan].creditosMes;
+  const { creditosTextoMes: texto, creditosVideoMes: video } = PLANES[usuaria.plan];
   await t.query(
-    'update usuarias set creditos_plan = $2, periodo_creditos = $3, guiones_mes = 0, busquedas_mes = 0, actualizada_en = now() where id = $1',
-    [usuaria.id, creditos, periodo],
+    `update usuarias set creditos_plan = $2, creditos_video_plan = $3, periodo_creditos = $4,
+            guiones_mes = 0, busquedas_mes = 0, video_gratis_usado = false, actualizada_en = now()
+      where id = $1`,
+    [usuaria.id, texto, video, periodo],
   );
-  await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'plan', cantidad: creditos, motivo: 'renovacion', periodo });
-  // Con el mes nuevo también vuelve a cero la cuenta de guiones gratis.
-  return { ...usuaria, creditos_plan: creditos, periodo_creditos: periodo, guiones_mes: 0, busquedas_mes: 0 };
+  await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'plan', cantidad: texto, motivo: 'renovacion', periodo });
+  if (video > 0) await anotarMovimiento(t, { usuariaId: usuaria.id, bolsa: 'video_plan', cantidad: video, motivo: 'renovacion', periodo });
+  // Con el mes nuevo también vuelven a cero los guiones gratis, las búsquedas y el video gratis.
+  return { ...usuaria, creditos_plan: texto, creditos_video_plan: video, periodo_creditos: periodo, guiones_mes: 0, busquedas_mes: 0, video_gratis_usado: false };
+}
+
+/**
+ * Devuelve lo cobrado por una creación, buscándolo en el libro por su referencia.
+ * Sirve cuando la falla llega más tarde (un video que Runway no terminó). No devuelve dos veces.
+ */
+export async function devolverPorReferencia(t, usuariaId, referencia) {
+  const ya = await t.query("select 1 from movimientos_creditos where referencia = $1 and motivo = 'devolucion' limit 1", [referencia]);
+  if (ya.rows.length) return 0;
+  const { rows } = await t.query(
+    "select bolsa, -sum(cantidad)::int as cantidad from movimientos_creditos where referencia = $1 and usuaria_id = $2 and cantidad < 0 group by bolsa",
+    [referencia, usuariaId],
+  );
+  const columna = { plan: 'creditos_plan', video_plan: 'creditos_video_plan', paquete: 'creditos_paquete' };
+  const partes = rows.filter((r) => r.cantidad > 0).map((r) => ({ bolsa: r.bolsa, columna: columna[r.bolsa], cantidad: r.cantidad }));
+  const total = partes.reduce((n, p) => n + p.cantidad, 0);
+  await devolver(t, usuariaId, { partes, total }, { referencia });
+  return total;
 }

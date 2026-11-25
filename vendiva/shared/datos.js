@@ -12,11 +12,16 @@ export const NOMBRE_APP = 'Vendiva';
 // El negocio está en Florida: el "día 1" de cada mes se calcula con su hora.
 export const ZONA_HORARIA = 'America/New_York';
 
+// Los créditos del mes se reparten en dos bolsas (decisión de la dueña, 25 nov 2026):
+//   - de texto: guion de en vivo, respuestas, GIFs y guiones extra.
+//   - de video: videos con IA (Runway).
+// Gratis: los 30 son solo de texto (para video tiene 1 video gratis al mes).
+// Planes de pago: mitad y mitad.
 export const PLANES = {
-  gratis: { id: 'gratis', nombre: 'Gratis', precioMes: 0, creditosMes: 30, maxProductos: 6 },
-  esencial: { id: 'esencial', nombre: 'Esencial', precioMes: 19, creditosMes: 200, maxProductos: null },
-  crecimiento: { id: 'crecimiento', nombre: 'Crecimiento', precioMes: 39, creditosMes: 600, maxProductos: null },
-  pro: { id: 'pro', nombre: 'Pro', precioMes: 59, creditosMes: 2000, maxProductos: null },
+  gratis: { id: 'gratis', nombre: 'Gratis', precioMes: 0, creditosMes: 30, creditosTextoMes: 30, creditosVideoMes: 0, maxProductos: 6 },
+  esencial: { id: 'esencial', nombre: 'Esencial', precioMes: 19, creditosMes: 200, creditosTextoMes: 100, creditosVideoMes: 100, maxProductos: null },
+  crecimiento: { id: 'crecimiento', nombre: 'Crecimiento', precioMes: 39, creditosMes: 600, creditosTextoMes: 300, creditosVideoMes: 300, maxProductos: null },
+  pro: { id: 'pro', nombre: 'Pro', precioMes: 59, creditosMes: 2000, creditosTextoMes: 1000, creditosVideoMes: 1000, maxProductos: null },
 };
 export const ORDEN_PLANES = ['gratis', 'esencial', 'crecimiento', 'pro'];
 export const PLAN_INICIAL = 'gratis';
@@ -25,9 +30,9 @@ export const PLAN_INICIAL = 'gratis';
 export const COSTOS_CREDITOS = {
   guiones: 0,
   guionesExtraGratis: 1, // plan Gratis, después de sus 100 guiones gratis del mes: cada vez extra
-  videosCortos: 15, // 3 videos cortos
-  videosDesdeFoto: 15, // 3 videos desde una foto
-  gifs: 9, // 3 GIFs
+  videoCorto: 20, // 1 video corto con IA (créditos de video); decisión de la dueña, 25 nov 2026
+  videoDesdeFoto: 20, // 1 video desde la foto del producto (créditos de video)
+  gifs: 9, // 3 GIFs (créditos de texto)
   guionEnVivo: 10, // 1 guion de en vivo
   respuestasComentarios: 3, // 3 respuestas para comentarios
 };
@@ -37,7 +42,24 @@ export const CREACIONES = {
   guiones: { id: 'guiones', nombre: 'Tus 3 guiones', costo: COSTOS_CREDITOS.guiones },
   guion_en_vivo: { id: 'guion_en_vivo', nombre: 'Guion completo para un en vivo', costo: COSTOS_CREDITOS.guionEnVivo },
   respuestas_comentarios: { id: 'respuestas_comentarios', nombre: '3 respuestas para comentarios', costo: COSTOS_CREDITOS.respuestasComentarios },
+  gifs: { id: 'gifs', nombre: '3 GIFs', costo: COSTOS_CREDITOS.gifs },
 };
+
+// Parte 4: videos con IA (Runway Gen-4 Turbo, desde la foto del producto). Gastan créditos de video.
+export const MOTOR_VIDEO = { id: 'runway', nombre: 'Runway', modelo: 'Gen-4 Turbo' };
+export const DURACION_VIDEO_SEGUNDOS = 10;
+export const VIDEOS_POR_TIPO = 3;
+export const TIPOS_VIDEO = {
+  corto: { id: 'corto', nombre: 'Video corto', plural: '3 videos cortos', costo: COSTOS_CREDITOS.videoCorto },
+  desde_foto: { id: 'desde_foto', nombre: 'Video desde la foto', plural: '3 videos desde una foto', costo: COSTOS_CREDITOS.videoDesdeFoto },
+};
+
+/**
+ * Los videos frenan cuando no alcanzan los créditos de video, en TODOS los planes:
+ * cada video le cuesta dinero real a la dueña en Runway. (Los créditos de texto
+ * siguen la regla de siempre: solo Gratis frena.)
+ */
+export const videoFrenaEnCero = () => true;
 
 /** Esencial, Crecimiento y Pro. Tendencias, buscador sin límite y productos sin tope son solo de pago. */
 export const esPlanDePago = (planId) => planId !== 'gratis';
@@ -48,7 +70,7 @@ export const planFrenaEnCero = (planId) => planId === 'gratis';
 // TikTok pide 1.000 seguidores para el programa de afiliadas (el carrito) y para los en vivo.
 export const SEGUIDORES_PARA_AFILIADA = 1000;
 
-// Paquetes de créditos sueltos: no vencen.
+// Paquetes de créditos sueltos: no vencen. Son créditos de VIDEO (decisión de la dueña, 25 nov 2026).
 export const PAQUETES_CREDITOS = [
   { id: 'chico', nombre: 'Chico', creditos: 100, precio: 9 },
   { id: 'mediano', nombre: 'Mediano', creditos: 300, precio: 24 },
@@ -58,7 +80,7 @@ export const PAQUETES_CREDITOS = [
 
 // Topes del plan Gratis (además de maxProductos).
 export const LIMITES_GRATIS = {
-  videosCortosGratisMes: 3, // siempre con Sora
+  videoGratisMes: 1, // 1 video corto de 10 segundos al mes, sin créditos: el gancho para pasarse a pago
   busquedasMes: 60, // buscador de productos (FastMoss); decisión de la dueña, 13 nov 2026
   guionesMes: 100, // veces que puede tocar "Crear mis 3 guiones" en el mes
 };

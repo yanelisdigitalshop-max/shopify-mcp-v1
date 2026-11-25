@@ -95,8 +95,8 @@ export async function guardarProducto({ db, reloj, usuariaId, busquedaId, indice
 
     const productoId = crypto.randomUUID();
     await t.query(
-      `insert into productos (id, usuaria_id, nombre, descripcion, precio_centavos, comision_pct, enlace, origen, fastmoss_id)
-       values ($1, $2, $3, $4, $5, $6, $7, 'buscador', $8)`,
+      `insert into productos (id, usuaria_id, nombre, descripcion, precio_centavos, comision_pct, enlace, origen, fastmoss_id, imagen_url)
+       values ($1, $2, $3, $4, $5, $6, $7, 'buscador', $8, $9)`,
       [
         productoId,
         usuariaId,
@@ -107,6 +107,8 @@ export async function guardarProducto({ db, reloj, usuariaId, busquedaId, indice
         p.comisionPct != null && p.comisionPct >= 0 && p.comisionPct <= 100 ? p.comisionPct : null,
         p.enlace,
         p.id,
+        // La foto que trae FastMoss/TikTok: de ella salen los videos con IA.
+        p.imagen,
       ],
     );
     await t.query('update busquedas set guardados = guardados || jsonb_build_object($2::text, $3::text) where id = $1', [busquedaId, String(indice), productoId]);

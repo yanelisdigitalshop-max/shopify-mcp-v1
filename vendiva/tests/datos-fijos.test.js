@@ -25,13 +25,22 @@ test('planes: nombres, precios, créditos y tope de productos', () => {
 
 test('costos en créditos y paquetes', () => {
   assert.deepEqual(COSTOS_CREDITOS, {
-    guiones: 0, guionesExtraGratis: 1, videosCortos: 15, videosDesdeFoto: 15, gifs: 9, guionEnVivo: 10, respuestasComentarios: 3,
+    guiones: 0, guionesExtraGratis: 1, videoCorto: 20, videoDesdeFoto: 20, gifs: 9, guionEnVivo: 10, respuestasComentarios: 3,
   });
   assert.deepEqual(
     PAQUETES_CREDITOS.map((p) => [p.nombre, p.creditos, p.precio]),
     [['Chico', 100, 9], ['Mediano', 300, 24], ['Grande', 750, 49], ['Tienda', 2000, 99]],
   );
-  assert.deepEqual(LIMITES_GRATIS, { videosCortosGratisMes: 3, busquedasMes: 60, guionesMes: 100 });
+  assert.deepEqual(LIMITES_GRATIS, { videoGratisMes: 1, busquedasMes: 60, guionesMes: 100 });
+});
+
+test('créditos del mes: texto y video por separado (Gratis solo texto; pago mitad y mitad)', () => {
+  const reparto = (id) => [PLANES[id].creditosTextoMes, PLANES[id].creditosVideoMes];
+  assert.deepEqual(reparto('gratis'), [30, 0]);
+  assert.deepEqual(reparto('esencial'), [100, 100]);
+  assert.deepEqual(reparto('crecimiento'), [300, 300]);
+  assert.deepEqual(reparto('pro'), [1000, 1000]);
+  for (const id of Object.keys(PLANES)) assert.equal(PLANES[id].creditosTextoMes + PLANES[id].creditosVideoMes, PLANES[id].creditosMes, id);
 });
 
 test('los 9 niveles por seguidores', () => {

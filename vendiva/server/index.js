@@ -11,6 +11,8 @@ import { abrirBase } from './db/index.js';
 import { migrar } from './db/migrar.js';
 import { crearApp } from './app.js';
 import { borrarSesionesVencidas } from './auth/sesiones.js';
+import { iniciarRevisorVideos } from './servicios/videos.js';
+import { runwayReal } from './fuentes/runway.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -49,13 +51,18 @@ async function main() {
     console.log(`  base de datos: ${db.motor === 'postgres' ? 'PostgreSQL' : `local (${config.dirDatosLocales})`}`);
     console.log(`  Claude: ${config.anthropic.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_ANTHROPIC_API_KEY)'}`);
     console.log(`  FastMoss: ${config.fastmoss.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_FASTMOSS_CLIENT_SECRET)'}`);
+    console.log(`  Runway: ${config.runway.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_RUNWAY_API_KEY)'}`);
   });
+
+  // Recoge los videos que Runway termina (tardan de 1 a 5 minutos).
+  const pararRevisor = iniciarRevisorVideos({ db, runway: runwayReal });
 
   const limpieza = setInterval(() => borrarSesionesVencidas(db).catch(() => {}), 6 * 60 * 60 * 1000);
   limpieza.unref();
 
   const apagar = () => {
     clearInterval(limpieza);
+    pararRevisor();
     servidor.close(async () => {
       await db.close().catch(() => {});
       process.exit(0);

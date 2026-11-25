@@ -1,6 +1,7 @@
 // Tarjeta de producto. Sirve para la lista (con editar y borrar) y para
 // elegir el producto del día en Hoy (seleccionable).
 
+import { useState } from 'react';
 import { Check, Pencil, Trash2 } from 'lucide-react';
 
 const TONOS = [
@@ -39,6 +40,22 @@ function Datos({ producto }) {
   );
 }
 
+/** La foto que trajo TikTok Shop (por FastMoss). Si no hay o no carga, la inicial. */
+function Miniatura({ producto }) {
+  const [fallo, setFallo] = useState(false);
+  if (!producto.imagen || fallo) return <Inicial nombre={producto.nombre} />;
+  return (
+    <img
+      src={producto.imagen}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFallo(true)}
+      className="h-14 w-14 shrink-0 rounded-2xl bg-stone-100 object-cover ring-1 ring-stone-900/5"
+    />
+  );
+}
+
 function Inicial({ nombre }) {
   return (
     <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold ${tonoDe(nombre)}`} aria-hidden="true">
@@ -61,7 +78,7 @@ export function ProductCard({ producto, nuevo = false, seleccionable = false, se
           seleccionado ? 'bg-orange-100 ring-2 ring-inset ring-orange-700' : 'bg-white ring-1 ring-stone-900/5 hover:bg-stone-50'
         }`}
       >
-        <Inicial nombre={producto.nombre} />
+        <Miniatura producto={producto} />
         <Datos producto={producto} />
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
@@ -79,7 +96,7 @@ export function ProductCard({ producto, nuevo = false, seleccionable = false, se
   return (
     <article className={`sombra-tarjeta min-w-0 rounded-3xl bg-white p-4 pb-2 ring-1 ring-stone-900/5 ${animacion}`}>
       <div className="flex items-start gap-4">
-        <Inicial nombre={producto.nombre} />
+        <Miniatura producto={producto} />
         <Datos producto={producto} />
       </div>
       <div className="mt-3 flex gap-2 border-t border-stone-100 pt-2">

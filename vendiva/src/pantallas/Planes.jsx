@@ -36,11 +36,24 @@ export function Planes() {
 
       <Tarjeta className="mt-5 p-5 md:p-6">
         <div className="grid grid-cols-2 gap-5">
-          <Dato
-            etiqueta="Créditos"
-            valor={formatoNumero(creditos.total)}
-            detalle={creditos.paquete > 0 ? `${formatoNumero(creditos.plan)} del plan + ${formatoNumero(creditos.paquete)} de paquetes` : `de ${formatoNumero(plan.creditosMes)} este mes`}
-          />
+          <Dato etiqueta="Créditos de texto" valor={formatoNumero(creditos.total)} detalle={`de ${formatoNumero(plan.creditosTextoMes)} este mes`} />
+          {creditos.videoGratis?.incluido && creditos.video.total === 0 ? (
+            <Dato
+              etiqueta="Video gratis"
+              valor={creditos.videoGratis.disponible ? '1' : '0'}
+              detalle={creditos.videoGratis.disponible ? `video corto de ${creditos.videoGratis.segundos} s este mes` : 'ya lo usaste este mes'}
+            />
+          ) : (
+            <Dato
+              etiqueta="Créditos de video"
+              valor={formatoNumero(creditos.video.total)}
+              detalle={
+                creditos.video.paquete > 0
+                  ? `${formatoNumero(creditos.video.plan)} del plan + ${formatoNumero(creditos.video.paquete)} de paquetes`
+                  : `de ${formatoNumero(plan.creditosVideoMes)} este mes`
+              }
+            />
+          )}
           <Dato
             etiqueta="Productos"
             valor={limites.productosMax == null ? formatoNumero(limites.productosUsados) : `${limites.productosUsados}/${limites.productosMax}`}
@@ -53,7 +66,9 @@ export function Planes() {
             Tus créditos del plan se renuevan solos el <strong className="font-semibold text-stone-900">{fechaLarga(creditos.renuevaEl)}</strong>.{' '}
             {limites.guionesMax == null
               ? 'Los guiones no gastan créditos.'
-              : `Los guiones no gastan créditos hasta ${limites.guionesMax} veces al mes; después, 1 crédito cada vez.`}
+              : `Los guiones no gastan créditos hasta ${limites.guionesMax} veces al mes; después, 1 crédito cada vez.`}{' '}
+            Los créditos de texto son para el guion de en vivo, las respuestas y los GIFs; los de video, solo para videos
+            {creditos.videoGratis?.incluido ? ' (en el plan Gratis viene 1 video corto gratis al mes)' : ''}. Los paquetes de créditos son de video y no vencen.
           </span>
         </p>
       </Tarjeta>

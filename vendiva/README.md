@@ -12,7 +12,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Parte 1 | Base y cuentas: registro (con confirmación de 18 años), sesión, Hoy, productos (tope de 6 en Gratis), 9 niveles | Lista para revisar |
 | Parte 2 | Guiones con la IA real (gratis e ilimitados, en los dos modos), guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos) con aviso antes de crear | Lista para revisar |
 | Parte 3 | Buscador y tendencias con datos de FastMoss (60 búsquedas al mes en Gratis; tendencias solo de pago) | Código listo y probado con un FastMoss de mentira. **Falta la llave de FastMoss** |
-| Parte 4 | Foto a video, 3 videos y 3 GIFs | Pendiente |
+| Parte 4 | Videos con IA (Runway Gen-4 Turbo): 3 videos cortos, 3 desde la foto y 3 GIFs por producto; créditos de texto y de video por separado | Código listo y probado con un Runway de mentira. **Falta la llave de Runway** |
 | Parte 5 | Voz y Programar | Pendiente |
 | Parte 6 | Textos para 4 redes y Vitrina | Pendiente |
 | Parte 7 | Pagos (primero en modo de prueba) | Pendiente |
@@ -85,6 +85,7 @@ Variables de entorno (ver `.env.example`):
 | `DATABASE_URL` | PostgreSQL donde viven las cuentas y los datos | Sí en producción. Sin ella el servidor no arranca |
 | `VENDIVA_ANTHROPIC_API_KEY` | Llave de Claude (Paso 0). También vale `ANTHROPIC_API_KEY` | Desde la Parte 2 |
 | `VENDIVA_FASTMOSS_CLIENT_SECRET` | `client_secret` de FastMoss (buscador y tendencias) | Desde la Parte 3 |
+| `VENDIVA_RUNWAY_API_KEY` | Llave de la API de Runway (videos con IA) | Desde la Parte 4 |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
 | `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-haiku-5-5` | No |
 | `PORT` | Puerto. Por defecto 3000 | No |
@@ -106,6 +107,8 @@ server/
   ia/claude.js         callClaude y parseClaudeJson
   ia/guionista.js      Lo que se le pide a Claude y la revisión de lo que devuelve
   fuentes/fastmoss.js  Conexión con la API de FastMoss (buscador y más vendidos de la semana)
+  fuentes/runway.js    Conexión con la API de Runway (videos desde la foto)
+  servicios/videos.js  Crear videos, revisar los que Runway termina y devolver créditos si fallan
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -127,7 +130,7 @@ tests/                 Pruebas del servidor
 
 - **Guiones:** `POST /api/productos/:id/guiones`. Tres guiones, cada uno con cámara y sin cámara. No gastan créditos y no llevan aviso. Se escriben los tres a la vez para que la espera sea de unos 15 segundos.
 - **Guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos):** el servidor solo crea si llega el costo que ella aceptó en el aviso (`costoAceptado`).
-- **Créditos:** primero se gastan los del plan y luego los de paquete. El plan Gratis frena si no alcanza (sin llamar a la IA). Los planes de pago no frenan: se descuenta hasta cero y se crea igual. Si la IA falla, se devuelve lo cobrado.
+- **Créditos:** se gastan los créditos de texto del plan (desde la Parte 4 los paquetes son solo de video). El plan Gratis frena si no alcanza (sin llamar a la IA). Los planes de pago no frenan: se descuenta hasta cero y se crea igual. Si la IA falla, se devuelve lo cobrado.
 - **Honestidad:** las instrucciones a la IA (`server/ia/guionista.js`) prohíben inventar datos del producto y prometer resultados, ventas o seguidores. Sin avatar; en el modo sin cámara su cara no aparece.
 - **Modelo:** `claude-haiku-5-5`, el Haiku más reciente, para las tres creaciones (decisión de la dueña, 11 nov 2026).
 - **Costo medido con `claude-haiku-5-5` (11 nov 2026):** cerca de 0,3 centavos de dólar por cada juego de 3 guiones, 0,14 por un guion de en vivo y 0,04 por las 3 respuestas. Con `claude-opus-5-5` eran 12, 6 y 2 centavos. Cada creación guarda el modelo y los tokens usados en la tabla `creaciones`.
@@ -151,6 +154,27 @@ Reglas:
 - **En pantalla** se dice que las cifras son estimadas de FastMoss y que la muestra gratis no la confirma FastMoss: se confirma y se pide dentro de TikTok Shop.
 - **Guardar** un producto lo agrega a sus productos con su precio, comisión y enlace, respetando el máximo de 6 del plan Gratis y sin duplicarlo. Desde ahí se crean sus guiones, guion de en vivo y respuestas como en la Parte 2.
 - **Tendencias:** solo planes de pago. En Gratis no se piden ni se muestran: solo el aviso con «Subir de plan».
+- **No hay publicación automática en TikTok.**
+
+## Parte 4: videos con IA (Runway)
+
+Los videos los hace la API de Runway (`server/fuentes/runway.js`), verificada en el SDK oficial de Runway (github.com/runwayml/sdk-node) el 25 de noviembre de 2026, porque docs.dev.runwayml.com no se pudo abrir desde el entorno de desarrollo:
+
+- **Dirección:** `https://api.dev.runwayml.com`. **Cabeceras:** `Authorization: Bearer <llave>` y `X-Runway-Version: 2024-11-06`.
+- **Crear:** `POST /v1/image_to_video` con `model: gen4_turbo`, `promptImage` (la foto del producto que trae FastMoss/TikTok Shop), `promptText` (lo escribe Claude, en inglés), `ratio: 720:1280` (vertical) y `duration: 10`. **Una llamada por video; nunca se reintenta sola.**
+- **Esperar:** `GET /v1/tasks/{id}`. Un revisor en el servidor consulta cada 10 segundos los videos en curso (tardan de 1 a 5 minutos). Ella puede salir de la app y lo encuentra listo.
+- **Precio de Runway:** 5 créditos de Runway por segundo a 0,01 USD = **0,05 USD por segundo; un video de 10 s cuesta 0,50 USD**.
+- **El video sale sin sonido.** Con cada video viene un guion en los dos modos (con cámara / sin cámara) para que ella ponga su voz. Sin avatar ni caras.
+- **Solo se guarda el enlace**, no el archivo. Los enlaces de Runway vencen en 24 a 48 horas, así que se guarda también el id de la tarea y `GET /api/videos/:id/ver` pide un enlace nuevo cuando el guardado tiene más de 20 horas. Si Runway ya borró la tarea, se le dice que puede crearlo de nuevo.
+
+Reglas:
+
+- **Por producto:** 3 videos cortos (20 créditos cada uno), 3 videos desde la foto (20 cada uno) y 3 GIFs (9 créditos por los 3).
+- **Dos bolsas de créditos.** Texto: guion de en vivo, respuestas, GIFs y guiones extra. Video: solo videos. Gratis: 30 de texto y 1 video corto gratis de 10 segundos al mes (solo en Gratis). Esencial 100 + 100, Crecimiento 300 + 300, Pro 1.000 + 1.000. Los paquetes son créditos de video y no vencen (decisiones de la dueña, 25 nov 2026).
+- **Aviso antes de crear** siempre, con el costo en créditos de video; nada se pide a Runway hasta «Sí, crear». El servidor exige el costo aceptado (`costoAceptado`).
+- **Los videos frenan en cero en todos los planes** (cada uno cuesta dinero real en Runway).
+- **Si algo falla** (Claude, Runway al pedir, Runway al procesar o más de 30 minutos), se devuelve todo una sola vez y el video gratis vuelve a quedar disponible.
+- **Producto sin foto:** se explica y se ofrece el buscador.
 - **No hay publicación automática en TikTok.**
 
 ## Decisiones de la dueña sobre la Parte 1

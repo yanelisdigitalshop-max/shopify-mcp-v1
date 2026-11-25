@@ -47,5 +47,9 @@ export function leerConfig(env = process.env) {
       // Solo se guarda SI existe, nunca el valor.
       llaveConfigurada: Boolean(texto(env.VENDIVA_FASTMOSS_CLIENT_SECRET)),
     },
+
+    runway: {
+      llaveConfigurada: Boolean(texto(env.VENDIVA_RUNWAY_API_KEY)),
+    },
   };
 }

@@ -1,4 +1,4 @@
-// Pantalla Hoy: su nivel, el producto del día y lo que la IA escribe para él.
+// Pantalla Hoy: su nivel, el producto del día y lo que la IA crea para él (guiones, videos y extras).
 
 import { useEffect, useState } from 'react';
 import { ArrowRight, Plus, TrendingUp } from 'lucide-react';
@@ -10,6 +10,7 @@ import { AvisoError, Boton, Campo, Hoja, Tarjeta } from '../componentes/base.jsx
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { SeccionExtras, SeccionGuiones } from './Creaciones.jsx';
 import { FormularioProducto } from './FormularioProducto.jsx';
+import { SeccionVideos } from './Videos.jsx';
 import { leerEntero } from './Registro.jsx';
 
 const fechaDeHoy = () => {
@@ -219,6 +220,7 @@ export function Hoy({ irA, foco }) {
         </section>
 
         <SeccionGuiones producto={productoDeHoy} modoPreferido={perfil.modoGrabacion} irA={irA} />
+        <SeccionVideos producto={productoDeHoy} modoPreferido={perfil.modoGrabacion} irA={irA} />
         <SeccionExtras producto={productoDeHoy} irA={irA} />
       </div>
 

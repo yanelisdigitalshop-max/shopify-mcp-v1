@@ -4,7 +4,7 @@
 //     (3 créditos): siempre con el aviso antes de crear.
 
 import { useState } from 'react';
-import { ChevronDown, MessageSquareText, Radio, Sparkles } from 'lucide-react';
+import { ChevronDown, Film, MessageSquareText, Radio, Sparkles } from 'lucide-react';
 import { COSTOS_CREDITOS, CREACIONES, SEGUIDORES_PARA_AFILIADA, formatoNumero } from '../../shared/datos.js';
 import { CreditNotice } from '../componentes/CreditNotice.jsx';
 import { IlustracionGuion } from '../componentes/Ilustraciones.jsx';
@@ -158,6 +158,7 @@ export function SeccionGuiones({ producto, modoPreferido, irA }) {
           costo={costoExtra}
           saldo={datos.creditos}
           plan={datos.plan}
+          unidad="de texto"
           nota={`Ya usaste tus ${formatoNumero(guionesMax ?? 100)} guiones gratis de este mes. El ${fechaLarga(datos.creditos.renuevaEl)} vuelven a ser gratis.`}
           creando={crear.cargando}
           textoCreando="Creando tus guiones…"
@@ -268,6 +269,48 @@ function RespuestasComentarios({ contenido }) {
   );
 }
 
+// ── 3 GIFs ─────────────────────────────────────────────────────────────────────
+
+function gifsComoTexto(c) {
+  return c.gifs
+    .map((g, i) => [`GIF ${i + 1}: ${g.nombre} (${g.duracion})`, `QUÉ SE VE: ${g.queSeVe}`, g.textoCorto && `TEXTO: ${g.textoCorto}`, `DÓNDE USARLO: ${g.dondeUsarlo}`].filter(Boolean).join('\n'))
+    .join('\n\n');
+}
+
+function Gifs({ contenido }) {
+  return (
+    <div className="space-y-4">
+      {contenido.gifs.map((g, i) => (
+        <div key={i} className="rounded-2xl bg-stone-50 p-4 ring-1 ring-inset ring-stone-200/70">
+          <p className="flex flex-wrap items-center gap-2">
+            <span className="rounded-lg bg-stone-900 px-2 py-1 text-xs font-bold tabular-nums text-orange-50">GIF {i + 1}</span>
+            <span className="text-base font-bold text-stone-900">{g.nombre}</span>
+            <span className="text-base text-stone-600">· {g.duracion}</span>
+          </p>
+          <p className="mt-2 text-lg leading-snug text-stone-900">
+            <span className="mr-1.5 text-xs font-bold uppercase tracking-[0.1em] text-orange-800">Qué se ve</span>
+            {g.queSeVe}
+          </p>
+          {g.textoCorto && (
+            <p className="mt-1.5 text-base leading-snug text-stone-700">
+              <span className="mr-1.5 text-xs font-bold uppercase tracking-[0.1em] text-orange-800">Texto</span>
+              {g.textoCorto}
+            </p>
+          )}
+          <p className="mt-1.5 text-base leading-snug text-stone-700">
+            <span className="mr-1.5 text-xs font-bold uppercase tracking-[0.1em] text-orange-800">Dónde usarlo</span>
+            {g.dondeUsarlo}
+          </p>
+        </div>
+      ))}
+      <p className="text-sm leading-snug text-stone-500">Los grabas con tu teléfono en pocos segundos y los guardas como GIF o como video corto en bucle.</p>
+      <BotonCopiar texto={() => gifsComoTexto(contenido)} className="w-full">
+        Copiar los 3 GIFs
+      </BotonCopiar>
+    </div>
+  );
+}
+
 // ── Una creación que cuesta créditos: fila + aviso + resultado ─────────────────
 
 function CreacionDePago({ tipo, icono: Icono, descripcion, textoCreando, nota, producto, crear, Resultado, irA }) {
@@ -331,6 +374,7 @@ function CreacionDePago({ tipo, icono: Icono, descripcion, textoCreando, nota, p
         costo={costo}
         saldo={datos.creditos}
         plan={datos.plan}
+        unidad="de texto"
         nota={nota}
         creando={accion.cargando}
         textoCreando={textoCreando}
@@ -356,9 +400,9 @@ export function SeccionExtras({ producto, irA }) {
         <h2 id="titulo-extras" className="text-xl font-bold tracking-tight text-stone-900">
           Más para este producto
         </h2>
-        <p className="text-base font-semibold tabular-nums text-stone-700">Tu saldo: {formatoNumero(datos.creditos.total)} créditos</p>
+        <p className="text-base font-semibold tabular-nums text-stone-700">Créditos de texto: {formatoNumero(datos.creditos.total)}</p>
       </div>
-      <p className="mt-1 text-base text-stone-600">Esto sí gasta créditos. Antes de crear te avisamos cuánto.</p>
+      <p className="mt-1 text-base text-stone-600">Esto gasta créditos de texto. Antes de crear te avisamos cuánto.</p>
 
       {/* key: al cambiar de producto, cada tarjeta empieza cerrada */}
       <div key={producto.id} className="mt-3 space-y-3">
@@ -385,6 +429,16 @@ export function SeccionExtras({ producto, irA }) {
           producto={producto}
           crear={acciones.crearRespuestas}
           Resultado={RespuestasComentarios}
+          irA={irA}
+        />
+        <CreacionDePago
+          tipo="gifs"
+          icono={Film}
+          descripcion="3 ideas de GIF cortitos del producto: qué se ve, cuánto dura, el texto y dónde usarlo."
+          textoCreando="Pensando tus 3 GIFs…"
+          producto={producto}
+          crear={acciones.crearGifs}
+          Resultado={Gifs}
           irA={irA}
         />
       </div>

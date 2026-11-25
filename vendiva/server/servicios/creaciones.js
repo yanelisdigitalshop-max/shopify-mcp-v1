@@ -12,7 +12,7 @@ import crypto from 'node:crypto';
 import { COSTOS_CREDITOS, CREACIONES, LIMITES_GRATIS, planFrenaEnCero } from '../../shared/datos.js';
 import { ErrorApp, noEncontrado, sinSesion } from '../errores.js';
 import { ErrorIA } from '../ia/claude.js';
-import { generarEnVivo, generarGuiones, generarRespuestas } from '../ia/guionista.js';
+import { generarEnVivo, generarGifs, generarGuiones, generarRespuestas } from '../ia/guionista.js';
 import { cobrar, devolver, proximaRenovacion, renovarSiToca } from './creditos.js';
 import { anotarHistorial } from './estado.js';
 
@@ -20,6 +20,7 @@ const GENERADORES = {
   guiones: generarGuiones,
   guion_en_vivo: generarEnVivo,
   respuestas_comentarios: generarRespuestas,
+  gifs: generarGifs,
 };
 
 // Una creación a la vez por usuaria: evita toques dobles y que alguien dispare

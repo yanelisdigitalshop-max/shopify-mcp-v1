@@ -46,6 +46,28 @@ export const RESPUESTAS = {
   ],
 };
 
+export const GIFS = {
+  gifs: [
+    { nombre: 'El gesto', duracion: '4 s', queSeVe: 'Tu mano pasa el cepillo.', textoCorto: 'Sin calor', dondeUsarlo: 'En los comentarios.' },
+    { nombre: 'Antes y después', duracion: '5 s', queSeVe: 'Un mechón antes y después.', textoCorto: 'Mira', dondeUsarlo: 'En historias.' },
+    { nombre: 'De cerca', duracion: '3 s', queSeVe: 'Las cerdas de cerca.', textoCorto: '', dondeUsarlo: 'Portada del video.' },
+  ],
+};
+
+export const PLAN_VIDEO = {
+  titulo: 'El cepillo en uso',
+  prompt: 'Vertical close-up of the hair brush from the photo on a clean bathroom counter. Hands pick it up and brush a wavy lock slowly; soft daylight; the camera pushes in gently. No faces, no text.',
+  conCamara: [
+    { tiempo: '0-3 s', dices: 'Mira cómo se usa.', haces: 'Sostienes el cepillo.' },
+    { tiempo: '3-10 s', dices: 'Así de fácil.', haces: 'Pones el clip.' },
+  ],
+  sinCamara: [
+    { tiempo: '0-5 s', seVe: 'El clip del cepillo.', seEscucha: 'Mira cómo se usa.' },
+    { tiempo: '5-10 s', seVe: 'Tus manos con el cepillo.', seEscucha: 'Así de fácil.' },
+  ],
+  textoEnPantalla: 'Sin calor',
+};
+
 /**
  * @param {object} [comportamiento]
  * @param {(n: number, pedido: string) => string | Error | undefined} [comportamiento.responder]
@@ -68,6 +90,8 @@ export function crearIaFalsa({ responder, demoraMs = 0 } = {}) {
       if (texto === undefined) {
         if (pedido.includes('Escribe un guion para un video')) texto = JSON.stringify(GUION);
         else if (pedido.includes('guion completo de un en vivo')) texto = JSON.stringify(EN_VIVO);
+        else if (pedido.includes('Diseña 3 GIFs')) texto = JSON.stringify(GIFS);
+        else if (pedido.includes('con una IA de video (Runway)')) texto = JSON.stringify(PLAN_VIDEO);
         else texto = JSON.stringify(RESPUESTAS);
       }
       return { texto, modelo: 'ia-de-prueba', uso: { entrada: 100, salida: 200 } };

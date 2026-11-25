@@ -277,3 +277,94 @@ Devuelve este JSON:
 
   return pedirJson(ia, { instrucciones, esquema: esquemaRespuestas, maxTokens: 4000, esfuerzo: 'low' });
 }
+
+// ── Parte 4: GIFs (créditos de texto) ──────────────────────────────────────────
+
+const esquemaGifs = z.object({
+  gifs: z
+    .array(z.object({ nombre: texto(80), duracion: texto(20), queSeVe: texto(400), textoCorto: textoLibre(60), dondeUsarlo: texto(300) }))
+    .min(3)
+    .transform((v) => v.slice(0, 3)),
+});
+
+export function generarGifs(ia, { perfil, producto, ahora }) {
+  const instrucciones = `${describirPedido({ perfil, producto, ahora })}
+
+Diseña 3 GIFs cortos de este producto, de 3 a 6 segundos cada uno, que ella pueda sacar de sus propios videos o grabar en un momento con el teléfono. En los tres se ven sus manos y el producto; su cara no hace falta. Tres ideas distintas (por ejemplo: el gesto de uso, el antes y después, un detalle de cerca).
+
+Para cada uno:
+- "nombre": cómo llamarlo, en pocas palabras.
+- "duracion": entre "3 s" y "6 s".
+- "queSeVe": qué se ve, paso a paso, para que lo grabe sin dudar.
+- "textoCorto": un texto de 2 a 5 palabras para poner encima, o vacío.
+- "dondeUsarlo": dónde le sirve (comentarios, historias, la portada del video, un mensaje a una clienta...).
+
+Devuelve este JSON:
+{
+  "gifs": [
+    { "nombre": "", "duracion": "4 s", "queSeVe": "", "textoCorto": "", "dondeUsarlo": "" }
+  ]
+}`;
+
+  return pedirJson(ia, { instrucciones, esquema: esquemaGifs, maxTokens: 4000, esfuerzo: 'low' });
+}
+
+// ── Parte 4: el plan de cada video con IA (no gasta créditos aparte) ───────────
+
+// Qué hace cada uno de los 3 videos de cada tipo.
+export const IDEAS_VIDEO = {
+  corto: [
+    'El producto en uso: unas manos lo usan de forma natural, como en la vida real.',
+    'Problema y solución: primero se ve la molestia, luego el producto la resuelve.',
+    'Detalle de cerca: textura, forma y acabado del producto, con movimiento suave.',
+  ],
+  desde_foto: [
+    'Acercamiento lento a la foto del producto, como presentándolo.',
+    'Giro suave de cámara alrededor del producto, para verlo por todos lados.',
+    'Revelado con luz: la luz recorre el producto y lo hace brillar.',
+  ],
+};
+
+const esquemaVideo = z.object({
+  titulo: texto(80),
+  prompt: texto(950),
+  conCamara: lista(z.object({ tiempo: texto(24), dices: texto(400), haces: texto(400) }), { min: 2, max: 5 }),
+  sinCamara: lista(z.object({ tiempo: texto(24), seVe: texto(400), seEscucha: texto(400) }), { min: 2, max: 5 }),
+  textoEnPantalla: textoLibre(80),
+});
+
+/**
+ * El plan de un video: el prompt para Runway (en inglés, desde la foto del producto)
+ * y el guion para usar ese clip en los dos modos. Runway hace el video SIN sonido:
+ * la voz la pone ella.
+ */
+export function generarPlanVideo(ia, { perfil, producto, tipo, indice, segundos, ahora }) {
+  const idea = IDEAS_VIDEO[tipo][indice - 1];
+  const instrucciones = `${describirPedido({ perfil, producto, ahora })}
+
+Vamos a crear un video vertical de ${segundos} segundos con una IA de video (Runway) a partir de la FOTO de este producto. El video sale sin sonido; ella le pone su voz.
+Idea de este video: ${idea}
+
+1. "prompt": las instrucciones para la IA de video, EN INGLÉS, de 400 a 900 caracteres. Reglas:
+   - Parte de la foto: el producto debe verse igual que en la foto (misma forma, colores y empaque). No inventes partes, logos ni letras.
+   - Formato vertical, ${segundos} segundos, movimiento de cámara suave y realista, buena luz, fondo limpio de casa.
+   - Nada de caras ni personas hablando, nada de avatar: como mucho se ven manos.
+   - Sin texto en la imagen, sin subtítulos, sin marcas de agua.
+   - Describe la escena y el movimiento en orden, en presente.
+2. El guion para usar este clip, en los dos modos (2 a 4 momentos, sumando unos ${segundos} segundos):
+   - "conCamara": ella habla a la cámara antes o después del clip; "dices" y "haces".
+   - "sinCamara": el clip y sus manos; "seVe" y "seEscucha" (su voz encima). Su cara no sale.
+3. "textoEnPantalla": un texto corto para poner encima del clip, o vacío.
+4. "titulo": nombre corto del video, en español.
+
+Devuelve este JSON:
+{
+  "titulo": "",
+  "prompt": "",
+  "conCamara": [ { "tiempo": "0-3 s", "dices": "", "haces": "" } ],
+  "sinCamara": [ { "tiempo": "0-3 s", "seVe": "", "seEscucha": "" } ],
+  "textoEnPantalla": ""
+}`;
+
+  return pedirJson(ia, { instrucciones, esquema: esquemaVideo, maxTokens: 4000, esfuerzo: 'low' });
+}
