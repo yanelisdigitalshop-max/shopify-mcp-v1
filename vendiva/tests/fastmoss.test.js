@@ -83,6 +83,7 @@ test('errores de FastMoss: mensajes amables, sin reintentar solo', async () => {
   const casos = [
     [{ status: 200, json: { code: 30001, msg: 'no permission' } }, 'FASTMOSS_SIN_PERMISO', false],
     [{ status: 401, json: { code: 30001 } }, 'FASTMOSS_SIN_PERMISO', false],
+    [{ status: 200, json: { code: 1002, msg: 'invalid client_secret' } }, 'FASTMOSS_SIN_PERMISO', false],
     [{ status: 200, json: { code: 30002, msg: 'limit' } }, 'FASTMOSS_SIN_SALDO', false],
     [{ status: 200, json: { code: 30003 } }, 'FASTMOSS_OCUPADO', true],
     [{ status: 429, json: null }, 'FASTMOSS_OCUPADO', true],
@@ -96,6 +97,17 @@ test('errores de FastMoss: mensajes amables, sin reintentar solo', async () => {
     await assert.rejects(buscarProductos('x', { env, pedir }), (e) => e instanceof ErrorFastmoss && e.codigo === codigo && e.reintentable === reintentable && !e.message.includes('secreto'), codigo);
     assert.equal(llamadas.length, 1, `${codigo}: una sola llamada, sin reintento`);
   }
+});
+
+test('llave inválida (code 1002): dice que la llave no vale, no "intenta de nuevo"', async () => {
+  const { pedir } = pedirFalso([{ status: 200, json: { code: 1002, msg: 'invalid client_secret' } }]);
+  await assert.rejects(buscarProductos('x', { env, pedir }), (e) => {
+    assert.match(e.message, /llave de FastMoss no es válida/);
+    assert.doesNotMatch(e.message, /intenta de nuevo/i);
+    assert.ok(!e.message.includes(env.VENDIVA_FASTMOSS_CLIENT_SECRET), 'nunca muestra la llave');
+    assert.match(e.detalle, /code 1002/);
+    return true;
+  });
 });
 
 test('sin llave: no llama a nadie', async () => {

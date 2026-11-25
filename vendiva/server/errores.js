@@ -10,6 +10,9 @@ export class ErrorApp extends Error {
     this.codigo = codigo;
     this.campos = extra.campos ?? null;
     this.datos = extra.datos ?? null;
+    // true/false: el servidor sabe si volver a intentar puede servir, y el cliente
+    // lo obedece (botón "Reintentar"). null: el cliente decide por el estado HTTP.
+    this.reintentable = typeof extra.reintentable === 'boolean' ? extra.reintentable : null;
   }
 }
 
