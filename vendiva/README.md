@@ -175,6 +175,7 @@ Reglas:
 - **Los videos frenan en cero en todos los planes** (cada uno cuesta dinero real en Runway).
 - **Si algo falla** (Claude, Runway al pedir, Runway al procesar o más de 30 minutos), se devuelve todo una sola vez y el video gratis vuelve a quedar disponible.
 - **Producto sin foto:** se explica y se ofrece el buscador.
+- **Advertencia de descarga:** mientras ella no descargue un video, al abrirlo sale «Descarga tu video ahora» (el enlace de Runway vence en 24 a 48 horas; si Runway borra el video se pierde y habría que crearlo de nuevo gastando créditos) con el botón grande «Descargar video». Sale cada vez que abre un video sin descargar. `GET /api/videos/:id/descargar` pasa el archivo de Runway directo al teléfono (no se guarda en el servidor) y, cuando llegó completo, marca el video como descargado (`videos.descargado_en`).
 - **No hay publicación automática en TikTok.**
 
 ## Decisiones de la dueña sobre la Parte 1

@@ -8,7 +8,8 @@
 //   - Si algo falla (la IA, Runway, o tarda demasiado) se devuelven los créditos o el
 //     video gratis.
 //   - Se guarda solo el ENLACE que da Runway (vence en 24 a 48 horas); al verlo se pide
-//     uno nuevo si hace falta. El archivo no se guarda en el servidor de Vendiva.
+//     uno nuevo si hace falta. El archivo no se guarda en el servidor de Vendiva: al
+//     descargarlo pasa directo de Runway al teléfono de ella.
 
 import crypto from 'node:crypto';
 import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, TIPOS_VIDEO, planFrenaEnCero } from '../../shared/datos.js';
@@ -180,12 +181,18 @@ export function iniciarRevisorVideos(contexto, cadaMs = 10000) {
 
 // ── Ver ────────────────────────────────────────────────────────────────────────
 
-/** El enlace para ver o descargar el video. Si el de Runway ya está viejo, pide uno nuevo. */
-export async function enlaceVideo({ db, runway, reloj, usuariaId, videoId }) {
+const videoVencido = () =>
+  new ErrorApp(410, 'VIDEO_VENCIDO', 'Este video ya no está disponible en el servicio de video. Puedes crearlo de nuevo.');
+
+/**
+ * El enlace para ver o descargar el video. Si el de Runway ya está viejo (o `forzar`),
+ * pide uno nuevo con el id de la tarea.
+ */
+export async function enlaceVideo({ db, runway, reloj, usuariaId, videoId, forzar = false }) {
   const v = (await db.query("select * from videos where id = $1 and usuaria_id = $2 and estado = 'listo'", [videoId, usuariaId])).rows[0];
   if (!v) throw noEncontrado('Ese video');
   const horas = (reloj().getTime() - new Date(v.url_obtenida_en).getTime()) / 3600000;
-  if (horas < RENOVAR_ENLACE_HORAS) return v.video_url;
+  if (!forzar && horas < RENOVAR_ENLACE_HORAS) return v.video_url;
 
   try {
     const r = await runway.consultarVideo(v.tarea_id);
@@ -193,6 +200,64 @@ export async function enlaceVideo({ db, runway, reloj, usuariaId, videoId }) {
     await db.query('update videos set video_url = $2, url_obtenida_en = $3, actualizado_en = now() where id = $1', [v.id, r.url, reloj()]);
     return r.url;
   } catch {
-    throw new ErrorApp(410, 'VIDEO_VENCIDO', 'Este video ya no está disponible en el servicio de video. Puedes crearlo de nuevo.');
+    throw videoVencido();
   }
+}
+
+// ── Descargar ──────────────────────────────────────────────────────────────────
+
+const MAXIMO_BYTES = 200 * 1024 * 1024;
+const sinAcentos = (t) =>
+  String(t)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+
+/**
+ * Abre el archivo del video en Runway para pasarlo directo al teléfono de ella.
+ * El archivo NO se guarda en el servidor de Vendiva: solo pasa.
+ * Si el enlace guardado ya no sirve, pide uno nuevo una vez; si Runway ya borró la tarea, VIDEO_VENCIDO.
+ */
+export async function abrirDescarga({ db, runway, reloj, usuariaId, videoId }) {
+  const fila = (
+    await db.query(
+      "select v.tipo, v.indice, p.nombre from videos v join productos p on p.id = v.producto_id where v.id = $1 and v.usuaria_id = $2 and v.estado = 'listo'",
+      [videoId, usuariaId],
+    )
+  ).rows[0];
+  if (!fila) throw noEncontrado('Ese video');
+
+  const intentar = async (url) => {
+    try {
+      const r = await runway.bajarArchivo(url);
+      const largo = Number(r.headers.get('content-length'));
+      if (r.ok && r.body && !(largo > MAXIMO_BYTES)) return r;
+      r.body?.cancel?.().catch?.(() => {});
+    } catch {
+      // sin conexión con Runway: se prueba con un enlace nuevo
+    }
+    return null;
+  };
+
+  let archivo = await intentar(await enlaceVideo({ db, runway, reloj, usuariaId, videoId }));
+  if (!archivo) archivo = await intentar(await enlaceVideo({ db, runway, reloj, usuariaId, videoId, forzar: true }));
+  if (!archivo) throw videoVencido();
+
+  const tipo = fila.tipo === 'corto' ? 'video-corto' : 'video-desde-foto';
+  return {
+    archivo,
+    nombreArchivo: `vendiva-${sinAcentos(fila.nombre) || 'producto'}-${tipo}-${fila.indice}.mp4`,
+  };
+}
+
+/** Ya lo descargó completo: deja de mostrarse la advertencia. */
+export async function marcarDescargado(db, { usuariaId, videoId, ahora }) {
+  await db.query('update videos set descargado_en = coalesce(descargado_en, $3), actualizado_en = now() where id = $1 and usuaria_id = $2', [
+    videoId,
+    usuariaId,
+    ahora,
+  ]);
 }

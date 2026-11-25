@@ -5,13 +5,15 @@
 //   - Plan Gratis: 1 video corto gratis al mes.
 //   - El video sale SIN sonido: con él viene el guion para que ella ponga su voz.
 //   - Runway tarda de 1 a 5 minutos: ella puede salir y lo encuentra listo.
+//   - El enlace de Runway vence en 24 a 48 horas: mientras no lo descargue, al abrir el
+//     video sale una advertencia con el botón grande "Descargar video".
 
 import { useState } from 'react';
-import { ChevronDown, Clapperboard, Download, ImageOff, Image as IconoFoto, Search, VolumeX } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Clapperboard, Download, ImageOff, Image as IconoFoto, PlayCircle, Search, TriangleAlert, VolumeX } from 'lucide-react';
 import { DURACION_VIDEO_SEGUNDOS, MOTOR_VIDEO, TIPOS_VIDEO, VIDEOS_POR_TIPO, formatoNumero } from '../../shared/datos.js';
 import { CreditNotice } from '../componentes/CreditNotice.jsx';
 import { BotonCopiar, SelectorModo } from '../componentes/ScriptCard.jsx';
-import { AvisoError, Boton, Puntos, Tarjeta } from '../componentes/base.jsx';
+import { AvisoError, Boton, Hoja, Puntos, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700';
@@ -162,6 +164,15 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
     setAviso(true);
   };
 
+  // Advertencia de descarga: sale CADA VEZ que abre un video que todavía no descargó.
+  const [advertencia, setAdvertencia] = useState(false);
+  const [verSinDescargar, setVerSinDescargar] = useState(false); // solo mientras esté en esta pantalla
+  const descarga = useAccion(() => acciones.descargarVideo(video.id), { alExito: () => setAdvertencia(false) });
+  const abrirAdvertencia = () => {
+    descarga.limpiar();
+    setAdvertencia(true);
+  };
+
   const creandose = enCurso(video);
   const listo = video?.estado === 'listo';
   const fallido = video?.estado === 'fallido';
@@ -191,10 +202,21 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
 
       {listo && (
         <div className="mt-3 space-y-3">
-          {fallaVideo ? (
+          {!video.descargado && !verSinDescargar ? (
+            // Sin descargar: el video no se abre directo. Primero sale la advertencia.
+            <button
+              type="button"
+              onClick={abrirAdvertencia}
+              className={`mx-auto flex aspect-[9/16] max-h-96 w-auto max-w-full flex-col items-center justify-center gap-3 rounded-2xl bg-stone-900 px-6 text-center text-orange-50 transition active:scale-[0.99] ${FOCO}`}
+            >
+              <PlayCircle className="h-16 w-16 text-amber-300" strokeWidth={1.5} aria-hidden="true" />
+              <span className="text-xl font-bold">Ver video</span>
+              <span className="text-base text-orange-100/80">Todavía no lo descargas</span>
+            </button>
+          ) : fallaVideo ? (
             <div className="flex aspect-[9/16] max-h-96 w-full flex-col items-center justify-center gap-2 rounded-2xl bg-stone-100 p-4 text-center">
               <ImageOff className="h-8 w-8 text-stone-400" aria-hidden="true" />
-              <p className="text-base text-stone-700">No pudimos mostrar el video aquí. Prueba abrirlo con el botón de abajo.</p>
+              <p className="text-base text-stone-700">No pudimos mostrar el video aquí. Descárgalo con el botón de abajo.</p>
             </div>
           ) : (
             <video
@@ -211,17 +233,63 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
             <VolumeX className="mt-0.5 h-5 w-5 shrink-0 text-stone-500" aria-hidden="true" />
             El video sale sin sonido. Tu voz la pones tú con el guion de abajo.
           </p>
-          <a
-            href={enlace}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-orange-100 px-4 text-lg font-semibold text-orange-900 hover:bg-orange-200 ${FOCO}`}
-          >
-            <Download className="h-5 w-5" aria-hidden="true" />
-            Abrir para descargar
-          </a>
+
+          {video.descargado ? (
+            <>
+              <p className="flex items-start gap-2 rounded-2xl bg-stone-100 px-4 py-3 text-base leading-snug text-stone-700" role="status">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orange-800" aria-hidden="true" />
+                Ya lo descargaste: está en las descargas de tu teléfono.
+              </p>
+              <Boton variante="secundario" className="min-h-12" icono={Download} onClick={() => descarga.ejecutar()} cargando={descarga.cargando} textoCargando="Descargando…">
+                Descargar otra vez
+              </Boton>
+            </>
+          ) : (
+            verSinDescargar && (
+              <div className="rounded-2xl bg-amber-100 p-4 ring-1 ring-inset ring-amber-300/70" role="status">
+                <p className="flex items-start gap-2 text-base font-semibold leading-snug text-amber-950">
+                  <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  Todavía no lo descargas. El enlace de Runway vence en 24 a 48 horas.
+                </p>
+                <Boton className="mt-3" icono={Download} onClick={() => descarga.ejecutar()} cargando={descarga.cargando} textoCargando="Descargando…">
+                  Descargar video
+                </Boton>
+              </div>
+            )
+          )}
+          {descarga.error && !advertencia && <AvisoError error={descarga.error} alReintentar={descarga.reintentar} reintentando={descarga.cargando} />}
           <GuionDelVideo video={video} modo={modo} alCambiarModo={alCambiarModo} />
         </div>
+      )}
+
+      {listo && (
+        <Hoja abierta={advertencia} alCerrar={() => !descarga.cargando && setAdvertencia(false)} titulo="Descarga tu video ahora">
+          <div className="flex items-start gap-3 rounded-2xl bg-amber-100 p-4 ring-1 ring-inset ring-amber-300/70">
+            <TriangleAlert className="mt-0.5 h-6 w-6 shrink-0 text-amber-900" aria-hidden="true" />
+            <p className="text-lg font-semibold leading-snug text-amber-950">Este video todavía no está guardado en tu teléfono.</p>
+          </div>
+          <p className="mt-4 text-lg leading-snug text-stone-700">
+            El enlace de Runway <strong className="font-semibold text-stone-900">vence en 24 a 48 horas</strong>. Si Runway borra el video, se pierde para siempre y
+            tendrías que crearlo de nuevo, <strong className="font-semibold text-stone-900">gastando créditos otra vez</strong>.
+          </p>
+          <p className="mt-3 text-base leading-snug text-stone-600">Descárgalo ahora: queda en las descargas de tu teléfono y lo subes a TikTok cuando quieras.</p>
+          {descarga.error && <AvisoError className="mt-4" error={descarga.error} alReintentar={descarga.reintentar} reintentando={descarga.cargando} />}
+          <div className="mt-6 space-y-3">
+            <Boton icono={Download} className="min-h-16 text-xl" onClick={() => descarga.ejecutar()} cargando={descarga.cargando} textoCargando="Descargando…">
+              Descargar video
+            </Boton>
+            <Boton
+              variante="secundario"
+              disabled={descarga.cargando}
+              onClick={() => {
+                setVerSinDescargar(true);
+                setAdvertencia(false);
+              }}
+            >
+              Ver sin descargar
+            </Boton>
+          </div>
+        </Hoja>
       )}
 
       {fallido && !accion.error && (

@@ -124,10 +124,20 @@ export async function cancelarVideo(tareaId, opciones) {
   await pedirRunway('DELETE', `/v1/tasks/${encodeURIComponent(tareaId)}`, null, opciones);
 }
 
+/**
+ * Abre el archivo de un video ya listo (el enlace de salida de Runway, sin llave).
+ * Devuelve la respuesta tal cual, para pasarla al teléfono sin guardarla.
+ */
+export async function bajarArchivo(url, { pedir = fetch } = {}) {
+  if (!/^https:\/\//.test(url)) throw new ErrorRunway('RUNWAY_PETICION', 'Enlace de video inválido.');
+  return pedir(url, { signal: AbortSignal.timeout(120000) });
+}
+
 /** La fuente real. Las pruebas pasan otra con la misma forma, que no llama a nadie. */
 export const runwayReal = {
   lista: () => runwayConfigurado(),
   crearVideo: (p) => crearVideo(p),
   consultarVideo: (id) => consultarVideo(id),
   cancelarVideo: (id) => cancelarVideo(id),
+  bajarArchivo: (url) => bajarArchivo(url),
 };

@@ -37,6 +37,8 @@ export function videoPublico(v) {
     guion: v.guion ? { conCamara: v.guion.conCamara, sinCamara: v.guion.sinCamara, textoEnPantalla: v.guion.textoEnPantalla } : null,
     prompt: v.prompt,
     falla: v.estado === 'fallido' ? v.falla : null,
+    // Mientras no lo descargue, al abrirlo se le avisa que el enlace de Runway vence.
+    descargado: Boolean(v.descargado_en),
     creadoEn: v.creado_en,
   };
 }

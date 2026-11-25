@@ -89,6 +89,18 @@ export function ProveedorEstado({ children }) {
       crearVideo: (productoId, tipo, indice, costoAceptado) =>
         guardar(api.post(`/productos/${productoId}/videos`, { tipo, indice, costoAceptado }, { esperaMs: ESPERA_IA_MS })),
 
+      // Baja el archivo al teléfono; el servidor lo marca como descargado y se trae el estado nuevo.
+      async descargarVideo(videoId) {
+        const r = await api.descargar(`/videos/${videoId}/descargar`);
+        try {
+          const e = await api.get('/estado');
+          despachar({ tipo: 'estado', estado: e.estado });
+        } catch {
+          // ya se descargó; el estado se pondrá al día en la próxima vuelta
+        }
+        return r;
+      },
+
       // Trae el estado otra vez sin mostrar "cargando" (para ver si un video ya quedó listo).
       async refrescar() {
         try {

@@ -75,9 +75,58 @@ async function pedir(metodo, ruta, cuerpo, { esperaMs = ESPERA_MAXIMA_MS } = {})
   return json;
 }
 
+/**
+ * Descarga un archivo del servidor y lo guarda en el teléfono (o la computadora).
+ * Devuelve cuando el archivo llegó completo. Nada se guarda en el navegador:
+ * el archivo pasa directo a la carpeta de descargas.
+ */
+async function descargar(ruta, { esperaMs = 180000, nombrePorDefecto = 'video.mp4' } = {}) {
+  const control = new AbortController();
+  const reloj = setTimeout(() => control.abort(), esperaMs);
+  let respuesta;
+  let blob;
+  try {
+    respuesta = await fetch(`/api${ruta}`, { credentials: 'same-origin', signal: control.signal });
+    if (respuesta.ok) blob = await respuesta.blob();
+  } catch {
+    throw new ErrorApi({
+      codigo: 'SIN_CONEXION',
+      mensaje: 'La descarga se cortó. Revisa tu internet y vuelve a intentar: el video sigue aquí.',
+      reintentable: true,
+    });
+  } finally {
+    clearTimeout(reloj);
+  }
+  if (!respuesta.ok) {
+    let e = null;
+    try {
+      e = (await respuesta.json())?.error;
+    } catch {
+      // sin JSON
+    }
+    throw new ErrorApi({
+      codigo: e?.codigo ?? 'ERROR',
+      mensaje: e?.mensaje ?? 'No pudimos descargar el video. Intenta de nuevo en un momento.',
+      estado: respuesta.status,
+      reintentable: respuesta.status >= 500 || respuesta.status === 429 || !e,
+    });
+  }
+  const nombre = /filename="([^"]+)"/.exec(respuesta.headers.get('content-disposition') ?? '')?.[1] ?? nombrePorDefecto;
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = nombre;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return { nombre };
+}
+
 export const api = {
   get: (ruta) => pedir('GET', ruta),
   post: (ruta, cuerpo = {}, opciones) => pedir('POST', ruta, cuerpo, opciones),
   patch: (ruta, cuerpo = {}) => pedir('PATCH', ruta, cuerpo),
   del: (ruta) => pedir('DELETE', ruta),
+  descargar,
 };

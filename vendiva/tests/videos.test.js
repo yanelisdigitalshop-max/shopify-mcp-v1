@@ -305,3 +305,66 @@ test('3 GIFs: 9 créditos de TEXTO, con aviso confirmado', async () => {
   assert.deepEqual(await movimientos(usuariaId), [{ bolsa: 'plan', cantidad: -9, motivo: 'gifs' }]);
   assert.match(ia.llamadas.at(-1).pedido, /3 GIFs cortos/);
 });
+
+// ── Descargar (advertencia: el enlace de Runway vence) ──────────────────────────
+
+/** Un video gratis ya listo; devuelve su id y su tarea en Runway. */
+async function videoListo() {
+  const { c, usuariaId, productoId } = await conProducto();
+  await crear(c, productoId, { tipo: 'corto', indice: 1, costoAceptado: 0 });
+  const tarea = (await s.db.query('select tarea_id from videos where usuaria_id = $1', [usuariaId])).rows[0].tarea_id;
+  rw.terminar(tarea, 'listo');
+  await revisarVideos({ db: s.db, runway: rw });
+  const v = (await estado(c)).videos[productoId].corto[0];
+  assert.equal(v.estado, 'listo');
+  return { c, usuariaId, productoId, id: v.id, tarea };
+}
+const bajar = (c, id) => fetch(`${s.base}/api/videos/${id}/descargar`, { headers: { cookie: c.cookie } });
+
+test('descargar: el archivo pasa directo al teléfono y solo entonces queda como descargado', async () => {
+  const { c, productoId, id, usuariaId } = await videoListo();
+  assert.equal((await estado(c)).videos[productoId].corto[0].descargado, false, 'recién hecho: todavía sin descargar');
+
+  const r = await bajar(c, id);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('content-type'), 'video/mp4');
+  assert.match(r.headers.get('content-disposition'), /^attachment; filename="vendiva-[a-z0-9-]+-video-corto-1\.mp4"$/);
+  assert.equal((await r.arrayBuffer()).byteLength, 10 * 1024);
+  // El servidor lo marca al terminar de mandarlo.
+  let descargado = false;
+  for (let i = 0; i < 20 && !descargado; i++) {
+    descargado = (await estado(c)).videos[productoId].corto[0].descargado;
+    if (!descargado) await new Promise((ok) => setTimeout(ok, 25));
+  }
+  assert.equal(descargado, true);
+  // No se cobró nada por descargar.
+  assert.deepEqual(await movimientos(usuariaId), []);
+});
+
+test('descargar con el enlace vencido: pide uno nuevo a Runway y descarga igual', async () => {
+  const { c, id } = await videoListo();
+  rw.vencerEnlaces();
+  rw.llamadas.length = 0;
+  const r = await bajar(c, id);
+  assert.equal(r.status, 200);
+  await r.arrayBuffer();
+  assert.deepEqual(rw.llamadas.map((l) => l.tipo), ['bajar', 'consultar', 'bajar']);
+});
+
+test('si Runway ya borró la tarea, el video se perdió: VIDEO_VENCIDO y sigue sin descargar', async () => {
+  const { c, productoId, id, tarea } = await videoListo();
+  rw.borrarTarea(tarea);
+  const r = await bajar(c, id);
+  assert.equal(r.status, 410);
+  assert.equal((await r.json()).error.codigo, 'VIDEO_VENCIDO');
+  assert.equal((await estado(c)).videos[productoId].corto[0].descargado, false);
+});
+
+test('descargar: solo sus propios videos y solo con sesión', async () => {
+  const { id } = await videoListo();
+  const otra = s.cliente();
+  await otra.post('/api/cuenta/registro', cuentaNueva());
+  assert.equal((await bajar(otra, id)).status, 404);
+  assert.equal((await fetch(`${s.base}/api/videos/${id}/descargar`)).status, 401);
+  assert.equal((await bajar(otra, 'no-es-un-id')).status, 404);
+});
