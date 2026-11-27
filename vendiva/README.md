@@ -82,7 +82,7 @@ Variables de entorno (ver `.env.example`):
 
 | Variable | Para qué | Obligatoria |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL donde viven las cuentas y los datos | Sí en producción. Sin ella el servidor no arranca |
+| `DATABASE_URL` | PostgreSQL donde viven las cuentas y los datos (en Railway la pone sola la base de datos) | Sí en producción. Sin ella el servidor no arranca |
 | `VENDIVA_ANTHROPIC_API_KEY` | Llave de Claude (Paso 0). También vale `ANTHROPIC_API_KEY` | Desde la Parte 2 |
 | `VENDIVA_FASTMOSS_CLIENT_SECRET` | `client_secret` de FastMoss (buscador y tendencias) | Desde la Parte 3 |
 | `VENDIVA_RUNWAY_API_KEY` | Llave de la API de Runway (videos con IA) | Desde la Parte 4 |
@@ -93,6 +93,7 @@ Variables de entorno (ver `.env.example`):
 | `VENDIVA_PAGOS_REALES` | Quita el seguro de cobros reales. **No se pone** hasta que la dueña lo apruebe por escrito | No |
 | `VENDIVA_FIREBASE_CUENTA_SERVICIO` | Cuenta de servicio de Firebase (el JSON o en base64) para los avisos del teléfono | Desde la Parte 8 |
 | `VENDIVA_REVISOR_CONTRASENA` | Contraseña de la cuenta de los revisores (solo para `npm run cuenta:revisores`) | No |
+| `VENDIVA_RESPALDO_CLAVE` | Llave (32 bytes en base64) que cifra las copias de seguridad. Guardarla también fuera del hosting | Para las copias |
 | `VENDIVA_APP_URL` | Dirección pública para las apps (solo para `npm run app:preparar`) | No |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
 | `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-haiku-5-5` | No |
@@ -128,7 +129,8 @@ server/
   servicios/borrar-cuenta.js  Borrar la cuenta (cancela la suscripción y borra todo)
   servicios/avisos.js  Avisos del teléfono «Te toca publicar» (Firebase)
   fuentes/fcm.js       Conexión con Firebase Cloud Messaging
-  scripts/             cuenta-revisores.js, preparar-app.js
+  scripts/             cuenta-revisores.js, preparar-app.js, respaldo.js (copias de seguridad)
+.railway/railway.ts    Railway: app, base de datos, bucket de copias y copia nocturna (ver DESPLIEGUE.md)
 src/nativo.js          Lo del teléfono en la app: galería y notificaciones
 android/, ios/         Las apps de Capacitor
 tienda/                Textos, ícono y capturas para las tiendas (borrador)
@@ -316,7 +318,7 @@ Para conectar los avisos (lo hace la dueña): crear un proyecto en Firebase con 
 
 **Pendiente de decisión de la dueña:**
 
-1. **Hosting y dominio** (nada contratado). Precios oficiales confirmados el 27 nov 2026:
+1. **Hosting: Railway** (decisión de la dueña, 27 nov 2026). La configuración está lista y **no se ha contratado ni conectado nada**: `.railway/railway.ts` (app, base de datos, bucket de copias y copia nocturna) y la guía paso a paso en **`DESPLIEGUE.md`**, con las copias de seguridad en dos capas (las de Railway y unas propias, cifradas, cada noche: `npm run respaldo`). Falta comprar el dominio. Precios oficiales confirmados el 27 nov 2026:
 
    | | Railway | Render | Fly.io |
    |---|---|---|---|
