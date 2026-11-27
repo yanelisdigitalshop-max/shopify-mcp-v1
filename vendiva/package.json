@@ -13,7 +13,8 @@
     "start": "NODE_ENV=production node --env-file-if-exists=.env server/index.js",
     "migrar": "node --env-file-if-exists=.env server/db/migrar.js",
     "probar:claude": "node --env-file-if-exists=.env server/ia/probar-claude.js",
-    "test": "node --test --test-concurrency=1 \"tests/*.test.js\""
+    "test": "node --test --test-concurrency=1 \"tests/*.test.js\"",
+    "cuenta:revisores": "node --env-file-if-exists=.env server/scripts/cuenta-revisores.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.7.0",

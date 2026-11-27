@@ -15,6 +15,7 @@ import { Productos } from './pantallas/Productos.jsx';
 import { Agente } from './pantallas/Proximamente.jsx';
 import { Registro } from './pantallas/Registro.jsx';
 import { Vitrina } from './pantallas/Vitrina.jsx';
+import { PaginaPublica, RUTAS_PUBLICAS } from './pantallas/Publicas.jsx';
 
 const PANTALLAS = { hoy: Hoy, productos: Productos, vitrina: Vitrina, agente: Agente, planes: Planes, cuenta: Cuenta };
 const VALIDAS = new Set(Object.keys(PANTALLAS));
@@ -132,6 +133,10 @@ function Aplicacion() {
 
 export default function App() {
   const { fase, datos, errorArranque, sesionVencida, acciones } = useEstado();
+
+  // Parte 8: privacidad, términos y cómo borrar la cuenta se ven sin iniciar sesión.
+  const ruta = window.location.pathname.replace(/\/+$/, '');
+  if (RUTAS_PUBLICAS.includes(ruta)) return <PaginaPublica ruta={ruta} />;
 
   if (fase === 'cargando') return <Arrancando />;
   if (fase === 'error') return <SinConexion error={errorArranque} alReintentar={acciones.cargar} />;

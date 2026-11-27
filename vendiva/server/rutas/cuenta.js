@@ -10,6 +10,8 @@ import { crearHash, verificarHash, hashDesactualizado } from '../auth/contrasena
 import { abrirSesion, cerrarSesion, exigirSesion } from '../auth/sesiones.js';
 import { anotarMovimiento, periodoDe } from '../servicios/creditos.js';
 import { anotarHistorial, construirEstado } from '../servicios/estado.js';
+import { borrarCuenta } from '../servicios/borrar-cuenta.js';
+import { z } from 'zod';
 
 const CORREO_EN_USO = () =>
   new ErrorApp(409, 'CORREO_EN_USO', 'Ya hay una cuenta con ese correo. Prueba entrar con tu contraseña.', {
@@ -19,7 +21,7 @@ const CORREO_EN_USO = () =>
 const NO_COINCIDEN = () =>
   new ErrorApp(401, 'CREDENCIALES', 'El correo o la contraseña no coinciden. Revísalos e intenta otra vez.');
 
-export function rutasCuenta({ db, config, reloj }) {
+export function rutasCuenta({ db, config, reloj, stripe }) {
   const r = Router();
 
   const freno = (opciones) =>
@@ -103,6 +105,23 @@ export function rutasCuenta({ db, config, reloj }) {
   r.post('/cuenta/salir', async (req, res) => {
     await cerrarSesion(db, config, req, res);
     res.json({ ok: true });
+  });
+
+  // Parte 8: borrar la cuenta. Pide su contraseña otra vez: es para siempre.
+  r.post('/cuenta/borrar', exigirSesion, frenoPorIp, async (req, res) => {
+    const { contrasena } = validar(
+      z.object({ contrasena: z.string({ error: 'Escribe tu contraseña.' }).min(1, 'Escribe tu contraseña.').max(200) }).strict(),
+      req.body,
+    );
+    const u = (await db.query('select contrasena_hash from usuarias where id = $1', [req.usuariaId])).rows[0];
+    if (!u || !(await verificarHash(contrasena, u.contrasena_hash))) {
+      throw new ErrorApp(401, 'CONTRASENA_INCORRECTA', 'La contraseña no coincide. Revísala e intenta otra vez.', {
+        campos: { contrasena: 'La contraseña no coincide.' },
+      });
+    }
+    await borrarCuenta({ db, stripe, usuariaId: req.usuariaId });
+    await cerrarSesion(db, config, req, res);
+    res.json({ borrada: true });
   });
 
   r.get('/estado', exigirSesion, async (req, res) => {

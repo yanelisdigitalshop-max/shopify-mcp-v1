@@ -280,6 +280,16 @@ export function crearStripe(o = {}) {
       return normalizarSuscripcion(await pedirStripe('POST', `/v1/subscriptions/${encodeURIComponent(id)}`, { cancel_at_period_end: cancelar ? 'true' : 'false' }, o));
     },
 
+    /** Parte 8 (borrar la cuenta): cancela YA, sin esperar al fin del mes y sin reembolso. */
+    async cancelarAhora(id) {
+      return normalizarSuscripcion(await pedirStripe('DELETE', `/v1/subscriptions/${encodeURIComponent(id)}`, null, o));
+    },
+
+    /** Parte 8 (borrar la cuenta): borra el cliente y sus formas de pago guardadas en Stripe. */
+    async borrarCliente(id) {
+      await pedirStripe('DELETE', `/v1/customers/${encodeURIComponent(id)}`, null, o);
+    },
+
     async portal({ cliente, volver }) {
       const s = await pedirStripe('POST', '/v1/billing_portal/sessions', { customer: cliente, return_url: volver, locale: 'es' }, o);
       return s.url;

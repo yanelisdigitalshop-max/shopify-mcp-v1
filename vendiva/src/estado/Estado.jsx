@@ -65,6 +65,16 @@ export function ProveedorEstado({ children }) {
         await api.post('/cuenta/salir');
         despachar({ tipo: 'salio' });
       },
+      // Parte 8: borrar la cuenta (cancela el plan y borra todo). Pide su contraseña.
+      async borrarCuenta(contrasena) {
+        try {
+          await api.post('/cuenta/borrar', { contrasena });
+        } catch (error) {
+          if (error.codigo === 'SIN_SESION') despachar({ tipo: 'sesionVencida' });
+          throw error;
+        }
+        despachar({ tipo: 'salio' });
+      },
       guardarPerfil: (cambios) => guardar(api.patch('/perfil', cambios)),
       agregarProducto: (producto) => guardar(api.post('/productos', producto)),
       editarProducto: (id, cambios) => guardar(api.patch(`/productos/${id}`, cambios)),

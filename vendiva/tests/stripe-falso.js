@@ -14,7 +14,7 @@ export function crearStripeFalso({ reloj = () => new Date() } = {}) {
   const sesiones = new Map();
   const subs = new Map();
   const llamadas = [];
-  const control = { rechazarTarjeta: false, lista: true, modo: 'prueba' };
+  const control = { rechazarTarjeta: false, lista: true, modo: 'prueba', fallarCancelacion: false };
 
   const normal = (s) => ({
     id: s.id,
@@ -83,6 +83,16 @@ export function crearStripeFalso({ reloj = () => new Date() } = {}) {
       const s = sub(subId);
       s.cancela = cancelar;
       return normal(s);
+    },
+    async cancelarAhora(subId) {
+      llamadas.push({ tipo: 'cancelar_ahora', subId });
+      if (control.fallarCancelacion) throw new ErrorStripe('PAGOS_FALLO', 'El sistema de pagos tuvo un problema. Intenta de nuevo en un momento.', { reintentable: true });
+      const s = sub(subId);
+      s.estado = 'canceled';
+      return normal(s);
+    },
+    async borrarCliente(clienteId) {
+      llamadas.push({ tipo: 'borrar_cliente', clienteId });
     },
     async portal(datos) {
       llamadas.push({ tipo: 'portal', ...datos });

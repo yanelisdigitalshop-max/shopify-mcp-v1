@@ -1,9 +1,9 @@
 // Mi cuenta: ver y corregir sus datos, su actividad reciente y cerrar sesión.
 
 import { useState } from 'react';
-import { Check, LogOut, Mail } from 'lucide-react';
+import { Check, FileText, LogOut, Mail, ShieldCheck, Trash2 } from 'lucide-react';
 import { MODOS_GRABACION, NEGOCIO, OBJETIVOS, PLANES, REDES, formatoNumero } from '../../shared/datos.js';
-import { AvisoError, Boton, Campo, Opcion, Tarjeta } from '../componentes/base.jsx';
+import { AvisoError, Boton, Campo, Hoja, Opcion, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { BotonAtras } from './Acceso.jsx';
 import { ICONO_MODO, ICONO_OBJETIVO } from './Registro.jsx';
@@ -62,12 +62,64 @@ function describir({ tipo, detalle }) {
   }
 }
 
+/** Parte 8: borrar la cuenta. Se explica todo lo que pasa y se pide la contraseña. */
+function HojaBorrar({ abierta, alCerrar }) {
+  const { datos, acciones } = useEstado();
+  const [contrasena, setContrasena] = useState('');
+  const borrar = useAccion((c) => acciones.borrarCuenta(c));
+  const conPlan = Boolean(datos.pagos?.suscripcion);
+  const cerrar = () => {
+    if (borrar.cargando) return;
+    setContrasena('');
+    borrar.limpiar();
+    alCerrar();
+  };
+  return (
+    <Hoja abierta={abierta} alCerrar={cerrar} titulo="Borrar mi cuenta">
+      <ul className="space-y-2.5 text-base leading-snug text-stone-800">
+        {conPlan && (
+          <li className="rounded-2xl bg-amber-100 px-4 py-3 font-semibold text-amber-950">
+            Tu plan {datos.plan.nombre} se cancela ahora mismo y no se te vuelve a cobrar. No hay reembolso del mes ya pagado.
+          </li>
+        )}
+        <li>Se borra todo lo tuyo: perfil, productos, guiones, videos, voces, calendario, vitrina y créditos (también los de paquetes).</li>
+        <li className="font-semibold text-stone-900">No se puede deshacer.</li>
+      </ul>
+      <form
+        className="mt-5 space-y-4"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (contrasena) borrar.ejecutar(contrasena);
+        }}
+      >
+        <Campo
+          etiqueta="Escribe tu contraseña para confirmar"
+          type="password"
+          autoComplete="current-password"
+          value={contrasena}
+          onChange={(e) => setContrasena(e.target.value)}
+          error={borrar.error?.campos?.contrasena}
+        />
+        {borrar.error && !borrar.error.campos && <AvisoError error={borrar.error} alReintentar={borrar.reintentar} reintentando={borrar.cargando} />}
+        <Boton type="submit" variante="peligro" icono={Trash2} cargando={borrar.cargando} textoCargando="Borrando…" disabled={!contrasena}>
+          Borrar mi cuenta para siempre
+        </Boton>
+        <Boton variante="secundario" onClick={cerrar} disabled={borrar.cargando}>
+          No, quedarme
+        </Boton>
+      </form>
+    </Hoja>
+  );
+}
+
 export function Cuenta({ alVolver }) {
   const { datos, acciones } = useEstado();
   const { usuaria, perfil, historial } = datos;
   const [guardado, setGuardado] = useState(false);
   const guardar = useAccion(acciones.guardarPerfil, { alExito: () => setGuardado(true) });
   const salir = useAccion(acciones.salir);
+  const [borrar, setBorrar] = useState(false);
   const [f, setF] = useState({
     nombre: usuaria.nombre,
     telefono: usuaria.telefono,
@@ -211,6 +263,23 @@ export function Cuenta({ alVolver }) {
           Cerrar sesión
         </Boton>
       </section>
+
+      <section className="mt-10 space-y-3" aria-label="Privacidad y cuenta">
+        <div className="grid grid-cols-2 gap-3">
+          <a href="/privacidad" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-base font-semibold text-stone-800 ring-1 ring-inset ring-stone-300">
+            <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
+            Privacidad
+          </a>
+          <a href="/terminos" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-base font-semibold text-stone-800 ring-1 ring-inset ring-stone-300">
+            <FileText className="h-5 w-5 shrink-0" aria-hidden="true" />
+            Términos de pago
+          </a>
+        </div>
+        <Boton variante="texto" icono={Trash2} className="min-h-12 text-red-700 hover:bg-red-50" onClick={() => setBorrar(true)}>
+          Borrar mi cuenta
+        </Boton>
+      </section>
+      <HojaBorrar abierta={borrar} alCerrar={() => setBorrar(false)} />
 
       <footer className="mt-8 text-center text-sm leading-relaxed text-stone-500">
         <p>
