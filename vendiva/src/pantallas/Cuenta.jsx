@@ -29,6 +29,10 @@ function describir({ tipo, detalle }) {
       if (!que) return null;
       return `Creaste ${que} para «${detalle.nombre}»${detalle.creditos ? ` (${detalle.creditos} créditos)` : ''}`;
     }
+    case 'publicacion_programada':
+      return `Programaste «${detalle.titulo}»`;
+    case 'publicacion_hecha':
+      return `Publicaste «${detalle.titulo}»`;
     default:
       return null;
   }

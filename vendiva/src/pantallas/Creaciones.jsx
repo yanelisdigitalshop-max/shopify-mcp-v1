@@ -12,6 +12,7 @@ import { LoadingPulse } from '../componentes/LoadingPulse.jsx';
 import { BotonCopiar, ScriptCard } from '../componentes/ScriptCard.jsx';
 import { AvisoError, Boton, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
+import { BotonProgramar } from '../componentes/Programar.jsx';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700';
 
@@ -112,7 +113,22 @@ export function SeccionGuiones({ producto, modoPreferido, irA }) {
           </p>
           <div key={creacion.id} className="anim-entrar mt-3 space-y-3">
             {creacion.contenido.guiones.map((guion, i) => (
-              <ScriptCard key={i} numero={i + 1} guion={guion} modo={modo} alCambiarModo={setModo} abiertoAlInicio={i === 0} />
+              <ScriptCard
+                key={i}
+                numero={i + 1}
+                guion={guion}
+                modo={modo}
+                alCambiarModo={setModo}
+                abiertoAlInicio={i === 0}
+                programar={
+                  <BotonProgramar
+                    className="mt-2"
+                    que={{ tipo: 'guion', creacionId: creacion.id, numero: i + 1 }}
+                    titulo={`Guion ${i + 1}: ${guion.titulo}`}
+                    sugerida={guion.mejorHora?.hora}
+                  />
+                }
+              />
             ))}
           </div>
           {errorDeEste && <AvisoError className="mt-3" error={crear.error} alReintentar={crear.reintentar} />}

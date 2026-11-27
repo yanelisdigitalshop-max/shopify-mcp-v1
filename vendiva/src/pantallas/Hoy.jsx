@@ -1,4 +1,4 @@
-// Pantalla Hoy: su nivel, el producto del día y lo que la IA crea para él (guiones, videos y extras).
+// Pantalla Hoy: su nivel, su calendario, el producto del día y lo que la IA crea para él (guiones, videos y extras).
 
 import { useEffect, useState } from 'react';
 import { ArrowRight, Plus, TrendingUp } from 'lucide-react';
@@ -8,6 +8,7 @@ import { IlustracionCaja } from '../componentes/Ilustraciones.jsx';
 import { ProductCard } from '../componentes/ProductCard.jsx';
 import { AvisoError, Boton, Campo, Hoja, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
+import { SeccionAgenda } from './Agenda.jsx';
 import { SeccionExtras, SeccionGuiones } from './Creaciones.jsx';
 import { FormularioProducto } from './FormularioProducto.jsx';
 import { SeccionVideos } from './Videos.jsx';
@@ -164,6 +165,7 @@ export function Hoy({ irA, foco }) {
       </div>
 
       <div className="mt-8 space-y-8 md:col-span-3 md:mt-1">
+        <SeccionAgenda />
         <section aria-labelledby="titulo-producto-hoy">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="titulo-producto-hoy" className="text-xl font-bold tracking-tight text-stone-900">

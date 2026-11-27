@@ -13,7 +13,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Parte 2 | Guiones con la IA real (gratis e ilimitados, en los dos modos), guion de en vivo (10 créditos) y 3 respuestas a comentarios (3 créditos) con aviso antes de crear | Lista para revisar |
 | Parte 3 | Buscador y tendencias con datos de FastMoss (60 búsquedas al mes en Gratis; tendencias solo de pago) | Código listo y probado con un FastMoss de mentira. **Falta la llave de FastMoss** |
 | Parte 4 | Videos con IA (Runway Gen-4 Turbo): 3 videos cortos, 3 desde la foto y 3 GIFs por producto; créditos de texto y de video por separado | Código listo y probado con un Runway de mentira. **Falta la llave de Runway** |
-| Parte 5 | Voz y Programar | Pendiente |
+| Parte 5 | Voz (hecha en la Parte 4) y Programar: su calendario de publicaciones | Lista para revisar |
 | Parte 6 | Textos para 4 redes y Vitrina | Pendiente |
 | Parte 7 | Pagos (primero en modo de prueba) | Pendiente |
 | Parte 8 | Publicar en Apple y Google | Pendiente |
@@ -114,6 +114,7 @@ server/
   servicios/voces.js   Voz real y voz de IA de cada video
   servicios/mezcla.js  Une la voz con el video al descargarlo (ffmpeg)
   servicios/videos.js  Crear videos, revisar los que Runway termina y devolver créditos si fallan
+  servicios/publicaciones.js  Programar: su calendario de publicaciones
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -194,6 +195,18 @@ Los videos de Runway salen sin sonido. Cada video listo tiene «Voz del video»:
 - **ElevenLabs** (`server/fuentes/elevenlabs.js`), verificado en su SDK oficial (github.com/elevenlabs/elevenlabs-js) el 25 nov 2026: `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_128`, cabecera `xi-api-key`, modelo `eleven_multilingual_v2`. Precio de lista cerca de 0,10 USD por 1.000 caracteres: unos 2 centavos por narración. Nunca se reintenta solo.
 - **Cada video tiene una sola voz;** la nueva reemplaza a la anterior. El audio (unos 10 segundos) se guarda en la base (`voces`) para unirlo al video.
 - **Al descargar**, ffmpeg une la voz con el video en una carpeta temporal que se borra al terminar; el archivo sale con `-con-voz.mp4`. El video sigue sin guardarse en el servidor. Si la voz cambia, el video vuelve a «sin descargar» para que baje el nuevo. El `Dockerfile` instala ffmpeg.
+
+## Parte 5: Programar
+
+Su propio calendario de publicaciones (decisiones de la dueña, 27 nov 2026):
+
+- **Qué hace:** en cada guion y en cada video listo hay un botón **Programar**. Ella elige día y hora; el formulario empieza con la hora sugerida por la IA (hoy si todavía no pasó, si no mañana). Si ya estaba programado, el botón dice cuándo y deja cambiar la hora o quitarlo.
+- **Vendiva no publica en TikTok.** A la hora elegida, en **Hoy** sale «Te toca publicar» con el texto y los hashtags del guion para copiar, y los botones «Ya lo publiqué» y «Cambiar la hora». Ella sube el video a mano.
+- **Avisos:** solo dentro de la app. Las notificaciones del teléfono llegan con la Parte 8 (Apple y Google).
+- **Costo:** gratis e ilimitado en todos los planes. No toca créditos.
+- **En Hoy, «Tu calendario»:** lo que le toca, lo que viene agrupado por día, y lo publicado en los últimos 7 días (con «Deshacer»).
+- **Reglas del servidor** (`shared/programar.js`): la hora viaja con su zona horaria (la del teléfono); no se acepta una hora pasada (con 5 minutos de tolerancia) ni a más de 90 días. Cada guion o video tiene a lo más una publicación pendiente: programarlo otra vez cambia la hora. Tope de seguridad de 60 pendientes a la vez (no es un límite de plan). Si borra el producto, lo suyo sale del calendario.
+- **Rutas:** `POST /api/publicaciones`, `PATCH /api/publicaciones/:id` (`programadaPara` y/o `publicada`), `DELETE /api/publicaciones/:id`. Tabla `publicaciones` (migración `010_programar.sql`).
 
 ## Decisiones de la dueña sobre la Parte 1
 

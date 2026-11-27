@@ -16,6 +16,7 @@ import { BotonCopiar, SelectorModo } from '../componentes/ScriptCard.jsx';
 import { AvisoError, Boton, Hoja, Puntos, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { VozDelVideo } from '../componentes/VozDelVideo.jsx';
+import { BotonProgramar } from '../componentes/Programar.jsx';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700';
 
@@ -281,6 +282,7 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
             )
           )}
           {descarga.error && !advertencia && <AvisoError error={descarga.error} alReintentar={descarga.reintentar} reintentando={descarga.cargando} />}
+          <BotonProgramar que={{ tipo: 'video', videoId: video.id }} titulo={video.titulo ?? nombre} />
           <VozDelVideo video={video} nombre={nombre} producto={producto} irA={irA} />
           <GuionDelVideo video={video} modo={modo} alCambiarModo={alCambiarModo} />
         </div>

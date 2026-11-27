@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, MOTOR_VIDEO, PLANES, esPlanDePago, nivelPara, planFrenaEnCero } from '../../shared/datos.js';
 import { sinSesion } from '../errores.js';
 import { pagoVozIA, renovarSiToca, proximaRenovacion, semanaDe } from './creditos.js';
+import { agendaDe } from './publicaciones.js';
 
 export function productoPublico(p) {
   return {
@@ -150,6 +151,9 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
       };
     }
 
+    // Parte 5: su calendario de publicaciones (gratis e ilimitado en todos los planes).
+    const agenda = await agendaDe(t, usuariaId, ahora);
+
     return {
       usuaria: {
         id: usuaria.id,
@@ -194,6 +198,7 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
       videos,
       buscador,
       tendencias,
+      agenda,
       limites: {
         productosUsados: totalProductos,
         productosMax: plan.maxProductos,

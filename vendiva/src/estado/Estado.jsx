@@ -94,6 +94,12 @@ export function ProveedorEstado({ children }) {
       crearVozIA: (videoId, costoAceptado) => guardar(api.post(`/videos/${videoId}/voz-ia`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
       quitarVoz: (videoId) => guardar(api.del(`/videos/${videoId}/voz`)),
 
+      // Parte 5: Programar. Su calendario (gratis; Vendiva no publica en TikTok, ella publica a mano).
+      // que: { tipo: 'guion', creacionId, numero } o { tipo: 'video', videoId }. programadaPara: ISO con zona.
+      programar: (que, programadaPara) => guardar(api.post('/publicaciones', { ...que, programadaPara })),
+      cambiarPublicacion: (id, cambios) => guardar(api.patch(`/publicaciones/${id}`, cambios)),
+      quitarPublicacion: (id) => guardar(api.del(`/publicaciones/${id}`)),
+
       // Baja el archivo al teléfono; el servidor lo marca como descargado y se trae el estado nuevo.
       async descargarVideo(videoId) {
         const r = await api.descargar(`/videos/${videoId}/descargar`);

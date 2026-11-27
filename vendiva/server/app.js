@@ -17,6 +17,7 @@ import { fastmossReal } from './fuentes/fastmoss.js';
 import { runwayReal } from './fuentes/runway.js';
 import { rutasVideos } from './rutas/videos.js';
 import { vozReal } from './fuentes/elevenlabs.js';
+import { rutasPublicaciones } from './rutas/publicaciones.js';
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -134,6 +135,7 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal, fa
   api.use(rutasCreaciones(contexto));
   api.use(rutasDescubrir(contexto));
   api.use(rutasVideos(contexto));
+  api.use(rutasPublicaciones(contexto));
 
   api.use((_req, _res, next) => next(new ErrorApp(404, 'RUTA_NO_ENCONTRADA', 'Esa dirección no existe.')));
 

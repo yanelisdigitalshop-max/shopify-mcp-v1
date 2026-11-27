@@ -1,5 +1,5 @@
 // Tarjeta de un guion: gancho, los pasos en el modo elegido (con cámara o sin
-// cámara), el texto para publicar y la hora sugerida.
+// cámara), el texto para publicar, la hora sugerida y el botón Programar.
 
 import { useState } from 'react';
 import { Check, ChevronDown, Clock, Copy, Hand, Video } from 'lucide-react';
@@ -135,7 +135,8 @@ export function guionComoTexto(guion, modo) {
     .trim();
 }
 
-export function ScriptCard({ numero, guion, modo, alCambiarModo, abiertoAlInicio = false }) {
+/** `programar`: el botón para ponerlo en su calendario (Parte 5). */
+export function ScriptCard({ numero, guion, modo, alCambiarModo, abiertoAlInicio = false, programar = null }) {
   const [abierto, setAbierto] = useState(abiertoAlInicio);
   const publicar = `${guion.caption}\n\n${guion.hashtags.join(' ')}`;
 
@@ -166,6 +167,7 @@ export function ScriptCard({ numero, guion, modo, alCambiarModo, abiertoAlInicio
           {abierto ? 'Ocultar el guion' : 'Ver el guion completo'}
           <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${abierto ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
+        {programar}
       </div>
 
       {abierto && (
