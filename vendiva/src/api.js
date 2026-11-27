@@ -2,6 +2,8 @@
 // Nada se guarda en el navegador: la sesión viaja en una cookie que el
 // código de la página no puede leer, y los datos viven en la base del servidor.
 
+import { esApp, guardarEnGaleria } from './nativo.js';
+
 const ESPERA_MAXIMA_MS = 20000;
 // La IA tarda más en escribir que una petición normal.
 export const ESPERA_IA_MS = 120000;
@@ -112,6 +114,15 @@ async function descargar(ruta, { esperaMs = 180000, nombrePorDefecto = 'video.mp
     });
   }
   const nombre = /filename="([^"]+)"/.exec(respuesta.headers.get('content-disposition') ?? '')?.[1] ?? nombrePorDefecto;
+  // Parte 8: en la app del teléfono, el video va directo a la galería.
+  if (esApp()) {
+    try {
+      await guardarEnGaleria(blob, nombre);
+    } catch {
+      throw new ErrorApi({ codigo: 'GALERIA', mensaje: 'No pudimos guardar el video en tu galería. Revisa que Vendiva tenga permiso para guardar fotos y videos, e intenta otra vez.', reintentable: true });
+    }
+    return { nombre, enGaleria: true };
+  }
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement('a');
   enlace.href = url;

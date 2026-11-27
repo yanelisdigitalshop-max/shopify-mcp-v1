@@ -1,0 +1,33 @@
+{
+  "appId": "com.vendiva.app",
+  "appName": "Vendiva",
+  "webDir": "dist",
+  "server": {
+    "url": "https://DOMINIO-PENDIENTE.invalid",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "never"
+  },
+  "plugins": {
+    "FirebaseMessaging": {
+      "presentationOptions": [
+        "alert",
+        "badge",
+        "sound"
+      ]
+    }
+  },
+  "experimental": {
+    "ios": {
+      "spm": {
+        "packageOptions": {
+          "@capacitor-firebase/messaging": {
+            "symlink": true
+          }
+        }
+      }
+    }
+  }
+}

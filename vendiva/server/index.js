@@ -13,6 +13,8 @@ import { crearApp } from './app.js';
 import { borrarSesionesVencidas } from './auth/sesiones.js';
 import { iniciarRevisorVideos } from './servicios/videos.js';
 import { runwayReal } from './fuentes/runway.js';
+import { fcmReal } from './fuentes/fcm.js';
+import { iniciarAvisos } from './servicios/avisos.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -52,11 +54,15 @@ async function main() {
     console.log(`  Claude: ${config.anthropic.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_ANTHROPIC_API_KEY)'}`);
     console.log(`  FastMoss: ${config.fastmoss.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_FASTMOSS_CLIENT_SECRET)'}`);
     console.log(`  Runway: ${config.runway.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_RUNWAY_API_KEY)'}`);
+    console.log(`  Stripe: ${config.pagos.llaveConfigurada ? `llave puesta (modo ${config.pagos.modo})` : 'falta la llave (VENDIVA_STRIPE_SECRET_KEY)'}`);
+    console.log(`  Firebase (avisos): ${fcmReal.lista() ? 'credenciales puestas' : 'faltan (VENDIVA_FIREBASE_CUENTA_SERVICIO)'}`);
     console.log(`  ElevenLabs: ${config.elevenlabs.llaveConfigurada ? 'llave puesta' : 'falta la llave (VENDIVA_ELEVENLABS_API_KEY)'}`);
   });
 
   // Recoge los videos que Runway termina (tardan de 1 a 5 minutos).
   const pararRevisor = iniciarRevisorVideos({ db, runway: runwayReal });
+  // Parte 8: avisa en el teléfono cuando le toca publicar (cada minuto).
+  const pararAvisos = iniciarAvisos({ db, fcm: fcmReal });
 
   const limpieza = setInterval(() => borrarSesionesVencidas(db).catch(() => {}), 6 * 60 * 60 * 1000);
   limpieza.unref();
@@ -64,6 +70,7 @@ async function main() {
   const apagar = () => {
     clearInterval(limpieza);
     pararRevisor();
+    pararAvisos();
     servidor.close(async () => {
       await db.close().catch(() => {});
       process.exit(0);

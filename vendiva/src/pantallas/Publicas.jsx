@@ -2,6 +2,7 @@
 //   /privacidad     política de privacidad (borrador)
 //   /terminos       términos de pago y cancelación (borrador)
 //   /borrar-cuenta  cómo borrar la cuenta (Google pide una página web para esto)
+//   /ayuda          soporte (Apple pide una dirección de soporte)
 
 import { ArrowLeft } from 'lucide-react';
 import { NEGOCIO } from '../../shared/datos.js';
@@ -9,7 +10,7 @@ import { EMPRESA, PRIVACIDAD, PRIVACIDAD_ES_BORRADOR, VERSION_PRIVACIDAD } from 
 import { TERMINOS, TERMINOS_ES_BORRADOR, VERSION_TERMINOS } from '../../shared/terminos.js';
 import { Logo } from '../componentes/Logo.jsx';
 
-export const RUTAS_PUBLICAS = ['/privacidad', '/terminos', '/borrar-cuenta'];
+export const RUTAS_PUBLICAS = ['/privacidad', '/terminos', '/borrar-cuenta', '/ayuda'];
 
 function Seccion({ titulo, texto, lista, nota }) {
   return (
@@ -74,6 +75,26 @@ export function PaginaPublica({ ruta }) {
         {TERMINOS.map((s) => (
           <Seccion key={s.titulo} {...s} />
         ))}
+      </Pagina>
+    );
+  }
+  if (ruta === '/ayuda') {
+    return (
+      <Pagina titulo="Ayuda de Vendiva">
+        <Seccion titulo="Escríbenos" texto={`Para cualquier duda o problema con la app, escríbenos a ${NEGOCIO.correoSoporte}. Cuéntanos qué pasó y desde qué teléfono; te respondemos por correo.`} />
+        <Seccion
+          titulo="Preguntas rápidas"
+          lista={[
+            'Vendiva no publica por ti ni entra a tus cuentas: tú subes tus videos a TikTok.',
+            'Para cancelar tu plan: pestaña Planes → «Cancelar mi plan». No se te vuelve a cobrar.',
+            'Para borrar tu cuenta: Mi cuenta → «Borrar mi cuenta».',
+          ]}
+        />
+        <p className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-lg">
+          <a className="font-semibold text-orange-800 underline" href="/privacidad">Privacidad</a>
+          <a className="font-semibold text-orange-800 underline" href="/terminos">Términos de pago</a>
+          <a className="font-semibold text-orange-800 underline" href="/borrar-cuenta">Borrar la cuenta</a>
+        </p>
       </Pagina>
     );
   }

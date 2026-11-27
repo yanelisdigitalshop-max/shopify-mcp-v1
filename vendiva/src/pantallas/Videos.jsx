@@ -17,6 +17,7 @@ import { AvisoError, Boton, Hoja, Puntos, Tarjeta } from '../componentes/base.js
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { VozDelVideo } from '../componentes/VozDelVideo.jsx';
 import { BotonProgramar } from '../componentes/Programar.jsx';
+import { esApp } from '../nativo.js';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700';
 
@@ -262,7 +263,7 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
             <>
               <p className="flex items-start gap-2 rounded-2xl bg-stone-100 px-4 py-3 text-base leading-snug text-stone-700" role="status">
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orange-800" aria-hidden="true" />
-                Ya lo descargaste: está en las descargas de tu teléfono.
+                {esApp() ? 'Ya lo guardaste: está en tu galería, en el álbum Vendiva.' : 'Ya lo descargaste: está en las descargas de tu teléfono.'}
               </p>
               <Boton variante="secundario" className="min-h-12" icono={Download} onClick={() => descarga.ejecutar()} cargando={descarga.cargando} textoCargando="Descargando…">
                 Descargar otra vez
@@ -298,7 +299,7 @@ function LugarVideo({ producto, tipo, indice, video, modo, alCambiarModo, irA })
             El enlace de Runway <strong className="font-semibold text-stone-900">vence en 24 a 48 horas</strong>. Si Runway borra el video, se pierde para siempre y
             tendrías que crearlo de nuevo, <strong className="font-semibold text-stone-900">gastando créditos otra vez</strong>.
           </p>
-          <p className="mt-3 text-base leading-snug text-stone-600">Descárgalo ahora: queda en las descargas de tu teléfono y lo subes a TikTok cuando quieras.</p>
+          <p className="mt-3 text-base leading-snug text-stone-600">{esApp() ? 'Guárdalo ahora: queda en tu galería y lo subes a TikTok cuando quieras.' : 'Descárgalo ahora: queda en las descargas de tu teléfono y lo subes a TikTok cuando quieras.'}</p>
           {descarga.error && <AvisoError className="mt-4" error={descarga.error} alReintentar={descarga.reintentar} reintentando={descarga.cargando} />}
           <div className="mt-6 space-y-3">
             <Boton icono={Download} className="min-h-16 text-xl" onClick={() => descarga.ejecutar()} cargando={descarga.cargando} textoCargando="Descargando…">

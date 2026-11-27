@@ -124,7 +124,7 @@ export async function programar(db, { usuariaId, que, programadaPara, ahora }) {
     ).rows[0];
     if (existente) {
       const { rows } = await t.query(
-        'update publicaciones set programada_para = $2, actualizado_en = $3 where id = $1 returning *',
+        'update publicaciones set programada_para = $2, actualizado_en = $3, notificada_en = null where id = $1 returning *',
         [existente.id, fecha, ahora],
       );
       return { publicacion: publicacionPublica(rows[0]), nueva: false };
@@ -164,7 +164,7 @@ export async function cambiarPublicacion(db, { usuariaId, id, cambios, ahora }) 
     if (cambios.programadaPara !== undefined) {
       if (p.publicada_en) throw new ErrorApp(409, 'YA_PUBLICADA', 'Esta ya la marcaste como publicada.');
       const fecha = revisarHora(cambios.programadaPara, ahora);
-      await t.query('update publicaciones set programada_para = $2, actualizado_en = $3 where id = $1', [id, fecha, ahora]);
+      await t.query('update publicaciones set programada_para = $2, actualizado_en = $3, notificada_en = null where id = $1', [id, fecha, ahora]);
     }
 
     if (cambios.publicada === true && !p.publicada_en) {

@@ -16,7 +16,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Parte 5 | Voz (hecha en la Parte 4) y Programar: su calendario de publicaciones | Lista para revisar |
 | Parte 6 | Textos para 4 redes y Vitrina | Lista para revisar (probada con una IA de mentira) |
 | Parte 7 | Pagos con Stripe, en modo de prueba | Código listo y probado con un Stripe de mentira. **Faltan las llaves de prueba de Stripe.** Ningún cobro real sin aprobación escrita de la dueña |
-| Parte 8 | Publicar en Apple y Google | Pendiente |
+| Parte 8 | Publicar en Apple y Google | En preparación: apps Capacitor, borrar cuenta, privacidad (borrador), avisos, galería, micrófono y textos de tienda listos. **Faltan decisiones de hosting y de pagos dentro de las apps.** Nada se envía a las tiendas sin aprobación escrita de la dueña |
 
 ## Paso 0: dónde va la llave de Anthropic
 
@@ -91,6 +91,9 @@ Variables de entorno (ver `.env.example`):
 | `VENDIVA_STRIPE_SECRET_KEY` | Llave secreta de Stripe. **Solo de prueba** (`sk_test_...`): con otra el servidor no arranca | Desde la Parte 7 |
 | `VENDIVA_STRIPE_WEBHOOK_SECRET` | Secreto del webhook de Stripe (`whsec_...`) | Desde la Parte 7 |
 | `VENDIVA_PAGOS_REALES` | Quita el seguro de cobros reales. **No se pone** hasta que la dueña lo apruebe por escrito | No |
+| `VENDIVA_FIREBASE_CUENTA_SERVICIO` | Cuenta de servicio de Firebase (el JSON o en base64) para los avisos del teléfono | Desde la Parte 8 |
+| `VENDIVA_REVISOR_CONTRASENA` | Contraseña de la cuenta de los revisores (solo para `npm run cuenta:revisores`) | No |
+| `VENDIVA_APP_URL` | Dirección pública para las apps (solo para `npm run app:preparar`) | No |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
 | `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-haiku-5-5` | No |
 | `PORT` | Puerto. Por defecto 3000 | No |
@@ -122,6 +125,13 @@ server/
   servicios/vitrina.js  Vitrina (solo Pro): calificaciones y plan
   fuentes/stripe.js    Conexión con Stripe (página de pago, suscripciones, firma de los avisos)
   servicios/pagos.js   Planes pagados, paquetes, cambios de plan, cancelación y cobros fallidos
+  servicios/borrar-cuenta.js  Borrar la cuenta (cancela la suscripción y borra todo)
+  servicios/avisos.js  Avisos del teléfono «Te toca publicar» (Firebase)
+  fuentes/fcm.js       Conexión con Firebase Cloud Messaging
+  scripts/             cuenta-revisores.js, preparar-app.js
+src/nativo.js          Lo del teléfono en la app: galería y notificaciones
+android/, ios/         Las apps de Capacitor
+tienda/                Textos, ícono y capturas para las tiendas (borrador)
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -279,6 +289,32 @@ Para conectarlo (lo hace la dueña, en modo de prueba):
 5. Probar con la tarjeta 4242 4242 4242 4242.
 
 **Sin construir todavía:** PayPal (va aparte; falta decidir cómo conectarlo), Shop Pay (no está en la página de pago de Stripe) y Bitcoin (fuera por decisión de la dueña).
+
+## Parte 8: publicar en Apple y Google (en preparación)
+
+**Nada se envía ni se publica en ninguna tienda sin la aprobación escrita de la dueña.** Las cuentas de desarrollador las abre ella y el envío lo hace ella; el código no tiene acceso a esas cuentas.
+
+Decisiones de la dueña (27 nov 2026):
+
+- **Apps con Capacitor** (`android/`, `ios/`, `capacitor.config.json`). Identificador `com.vendiva.app`, nombre «Vendiva». La app abre la página de Vendiva en su dirección pública (`server.url`) y le suma lo del teléfono. Se prepara con `VENDIVA_APP_URL=https://<dominio> npm run app:preparar`.
+- **Sin Mac:** la app de iPhone se compila con un servicio en la nube (por ejemplo Codemagic). La de Android también se puede compilar ahí; en el entorno de desarrollo no se pudo porque el SDK de Android se descarga de un sitio bloqueado.
+- **Cuentas de empresa** a nombre de **Machado Luxury Estates Corp.** (Apple y Google). Solo **Estados Unidos**. **18+**.
+- **Borrar la cuenta** (Mi cuenta → «Borrar mi cuenta», con la contraseña): se cancela YA la suscripción en Stripe (sin reembolso), se borra el cliente de Stripe y todo lo suyo en Vendiva. Si Stripe no puede cancelar, no se borra nada. Página pública `/borrar-cuenta` para Google.
+- **Política de privacidad** (`shared/privacidad.js`, página pública `/privacidad`): **borrador** que revisan la dueña o un abogado. También son públicas `/terminos` y `/ayuda`.
+- **Cuenta para los revisores:** `VENDIVA_REVISOR_CONTRASENA=... npm run cuenta:revisores` crea o pone al día `revision@vendiva.app` con el plan Pro sin cobro y dos productos de ejemplo.
+- **Notificaciones «Te toca publicar»** (Firebase Cloud Messaging, iPhone y Android): el permiso se pide la primera vez que programa algo en la app, no al abrirla. El servidor revisa cada minuto y avisa una vez por publicación en todos sus teléfonos; si cambia la hora, avisa otra vez; no avisa lo que tiene más de 6 horas de atrasado. Al cerrar sesión, ese teléfono deja de recibir.
+- **Videos a la galería:** en la app, «Descargar video» lo guarda en el álbum «Vendiva» de la galería.
+- **Micrófono:** con su texto explicativo (iPhone: `NSMicrophoneUsageDescription`; Android: `RECORD_AUDIO`).
+- **Textos e imágenes de tienda** en `tienda/` (borrador en español para revisar): `tienda/textos-tienda.md`, ícono de 1024 px y capturas de iPhone (1320×2868) y Android (1080×1920).
+- **Shop Pay queda fuera** (decisión de la dueña). PayPal: lo revisa la dueña en su panel de Stripe.
+
+Para conectar los avisos (lo hace la dueña): crear un proyecto en Firebase con las apps `com.vendiva.app` de iPhone y Android; poner `google-services.json` en `android/app/` y `GoogleService-Info.plist` en `ios/App/App/` (no se suben al repositorio si tienen datos privados); subir la llave de APNs de Apple a Firebase; crear una cuenta de servicio con permiso de Firebase Cloud Messaging y poner su JSON en `VENDIVA_FIREBASE_CUENTA_SERVICIO`. Sin eso, la app funciona igual pero sin avisos al teléfono.
+
+**Pendiente de decisión de la dueña:**
+
+1. **Hosting y dominio** (opciones con precios en el resumen de la conversación; nada contratado).
+2. **Pagos dentro de las apps** (a, b o c). Hasta que se decida, la pestaña Planes de la app abre la página de pago de Stripe dentro de la app, igual que en la web: eso es justo lo que hay que revisar con las reglas de Apple y Google antes de enviar.
+3. **Impuestos y revisión legal** de privacidad y términos (siguen siendo borradores).
 
 ## Decisiones de la dueña sobre la Parte 1
 

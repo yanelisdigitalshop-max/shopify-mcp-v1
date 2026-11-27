@@ -6,3 +6,6 @@ dist
 tests
 *.log
 .git
+android
+ios
+tienda

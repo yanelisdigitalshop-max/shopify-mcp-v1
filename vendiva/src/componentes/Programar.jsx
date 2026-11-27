@@ -7,6 +7,7 @@ import { CalendarClock, CalendarPlus, Trash2 } from 'lucide-react';
 import { PROGRAMAR, horaDeTexto } from '../../shared/programar.js';
 import { AvisoError, Boton, Campo, Hoja } from './base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
+import { activarNotificaciones } from '../nativo.js';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700';
 const dos = (n) => String(n).padStart(2, '0');
@@ -104,7 +105,7 @@ export function HojaProgramar({ abierta, alCerrar, titulo, sugerida, existente, 
         <Campo etiqueta="Día" type="date" value={dia} min={diaLocal(hoy)} max={diaLocal(limite)} onChange={(e) => setDia(e.target.value)} />
         <Campo etiqueta="Hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} error={errorCampo} />
         <p className="text-base leading-snug text-stone-600">
-          Vendiva no publica por ti. A esa hora, en <strong className="font-semibold text-stone-900">Hoy</strong> te va a salir «Te toca publicar», y tú lo subes a TikTok.
+          Vendiva no publica por ti. A esa hora te avisamos (en <strong className="font-semibold text-stone-900">Hoy</strong>, y en la app del teléfono con una notificación si la aceptas), y tú lo subes a TikTok.
         </p>
         {error && !error.campos && <AvisoError error={error} />}
         <Boton type="submit" icono={CalendarPlus} cargando={guardando} textoCargando="Guardando…" disabled={quitando}>
@@ -130,7 +131,11 @@ export function BotonProgramar({ que, titulo, sugerida, className = '' }) {
   const existente = pendienteDe(datos.agenda, que);
   const cerrar = () => setAbierta(false);
   const guardar = useAccion((iso) => (existente ? acciones.cambiarPublicacion(existente.id, { programadaPara: iso }) : acciones.programar(que, iso)), {
-    alExito: cerrar,
+    alExito: () => {
+      cerrar();
+      // En la app del teléfono: al programar, se pide permiso para avisarle a la hora (una vez).
+      activarNotificaciones(acciones.registrarTelefono).catch(() => {});
+    },
   });
   const quitar = useAccion(() => acciones.quitarPublicacion(existente.id), { alExito: cerrar });
 

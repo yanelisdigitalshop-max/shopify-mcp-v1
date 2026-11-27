@@ -4,6 +4,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { api, ESPERA_IA_MS } from '../api.js';
+import { esApp, escucharNotificaciones, tokenActual } from '../nativo.js';
 
 const Contexto = createContext(null);
 
@@ -62,6 +63,11 @@ export function ProveedorEstado({ children }) {
       registrar: (datos) => guardar(api.post('/cuenta/registro', datos)),
       entrar: (datos) => guardar(api.post('/cuenta/entrar', datos)),
       async salir() {
+        // En la app: este teléfono deja de recibir sus avisos.
+        if (esApp()) {
+          const token = await tokenActual().catch(() => null);
+          if (token) await api.post('/dispositivos/quitar', { token }).catch(() => {});
+        }
         await api.post('/cuenta/salir');
         despachar({ tipo: 'salio' });
       },
@@ -124,6 +130,9 @@ export function ProveedorEstado({ children }) {
       reanudarPlan: () => guardar(api.post('/pagos/reanudar')),
       abrirPortal: () => api.post('/pagos/portal'),
 
+      // Parte 8: registra este teléfono para los avisos «Te toca publicar».
+      registrarTelefono: (token, plataforma) => api.post('/dispositivos', { token, plataforma }),
+
       // Baja el archivo al teléfono; el servidor lo marca como descargado y se trae el estado nuevo.
       async descargarVideo(videoId) {
         const r = await api.descargar(`/videos/${videoId}/descargar`);
@@ -152,6 +161,12 @@ export function ProveedorEstado({ children }) {
   useEffect(() => {
     acciones.cargar();
   }, [acciones]);
+
+  // Parte 8: en la app, con sesión, se escuchan los avisos (sin pedir permiso aquí).
+  const conSesion = Boolean(estado.datos?.usuaria?.id);
+  useEffect(() => {
+    if (conSesion) escucharNotificaciones(acciones.registrarTelefono).catch(() => {});
+  }, [conSesion, acciones]);
 
   // Mientras haya un video creándose, se revisa cada 10 segundos (aunque ella esté en otra pestaña de la app).
   const hayVideoEnCurso = useMemo(() => {
