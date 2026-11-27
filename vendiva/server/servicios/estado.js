@@ -6,6 +6,8 @@ import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, MOTOR_VIDEO, PLANES, esPlanDeP
 import { sinSesion } from '../errores.js';
 import { pagoVozIA, renovarSiToca, proximaRenovacion, semanaDe } from './creditos.js';
 import { agendaDe } from './publicaciones.js';
+import { textosRedesDe } from './textos-redes.js';
+import { vitrinaDe } from './vitrina.js';
 
 export function productoPublico(p) {
   return {
@@ -154,6 +156,11 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
     // Parte 5: su calendario de publicaciones (gratis e ilimitado en todos los planes).
     const agenda = await agendaDe(t, usuariaId, ahora);
 
+    // Parte 6: los textos para sus redes de los guiones que se ven, y su Vitrina (solo Pro).
+    const idsGuiones = Object.values(creaciones).map((c) => c.guiones?.id).filter(Boolean);
+    const textosRedes = await textosRedesDe(t, usuariaId, idsGuiones);
+    const vitrina = await vitrinaDe(t, usuaria);
+
     return {
       usuaria: {
         id: usuaria.id,
@@ -168,6 +175,9 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
         modoGrabacion: perfil.modo_grabacion,
         objetivo: perfil.objetivo,
         usuarioTiktok: perfil.usuario_tiktok,
+        usuarioInstagram: perfil.usuario_instagram,
+        usuarioFacebook: perfil.usuario_facebook,
+        usuarioPinterest: perfil.usuario_pinterest,
         redes: perfil.redes,
         onboardingPaso: perfil.onboarding_paso,
         onboardingCompleto: perfil.onboarding_completo,
@@ -199,6 +209,8 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
       buscador,
       tendencias,
       agenda,
+      textosRedes,
+      vitrina,
       limites: {
         productosUsados: totalProductos,
         productosMax: plan.maxProductos,

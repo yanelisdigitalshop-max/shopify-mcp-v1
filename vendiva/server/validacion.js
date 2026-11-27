@@ -44,21 +44,31 @@ export const esquemaEntrar = z.object({
   contrasena: z.string({ error: 'Escribe tu contraseña.' }).min(1, 'Escribe tu contraseña.').max(200),
 });
 
-const usuarioTiktok = z
-  .string()
-  .trim()
-  .transform((v) => v.replace(/^@+/, ''))
-  .pipe(
-    z.union([
-      z.literal(''),
-      z
-        .string()
-        .min(2, 'Tu usuario de TikTok es muy corto.')
-        .max(24, 'Tu usuario de TikTok es muy largo.')
-        .regex(/^[a-zA-Z0-9._]+$/, 'Escribe tu usuario tal como sale en TikTok, sin @ y sin espacios.'),
-    ]),
-  )
-  .transform((v) => v || null);
+/** Usuario de una red, sin @. Vacío = no lo quiere poner. Nunca se pide la contraseña. */
+const usuarioDeRed = (red, { min, max, letras }) =>
+  z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^@+/, ''))
+    .pipe(
+      z.union([
+        z.literal(''),
+        z
+          .string()
+          .min(min, `Tu usuario de ${red} es muy corto.`)
+          .max(max, `Tu usuario de ${red} es muy largo.`)
+          .regex(letras, `Escribe tu usuario tal como sale en ${red}, sin @ y sin espacios.`),
+      ]),
+    )
+    .transform((v) => v || null)
+    .nullable()
+    .transform((v) => v || null);
+
+const usuarioTiktok = usuarioDeRed('TikTok', { min: 2, max: 24, letras: /^[a-zA-Z0-9._]+$/ });
+// Parte 6: opcionales, solo para las redes que marcó.
+const usuarioInstagram = usuarioDeRed('Instagram', { min: 1, max: 30, letras: /^[a-zA-Z0-9._]+$/ });
+const usuarioFacebook = usuarioDeRed('Facebook', { min: 5, max: 50, letras: /^[a-zA-Z0-9.]+$/ });
+const usuarioPinterest = usuarioDeRed('Pinterest', { min: 3, max: 30, letras: /^[a-zA-Z0-9_]+$/ });
 
 // Todos los campos son opcionales: el registro guarda paso a paso.
 export const esquemaPerfil = z
@@ -74,6 +84,9 @@ export const esquemaPerfil = z
     modoGrabacion: z.enum(ids(MODOS_GRABACION), { error: 'Elige cómo prefieres grabar.' }),
     objetivo: z.enum(ids(OBJETIVOS), { error: 'Elige tu objetivo.' }),
     usuarioTiktok,
+    usuarioInstagram,
+    usuarioFacebook,
+    usuarioPinterest,
     redes: z
       .array(z.enum(ids(REDES)))
       .max(REDES.length)

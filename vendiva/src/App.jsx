@@ -12,8 +12,9 @@ import { Cuenta } from './pantallas/Cuenta.jsx';
 import { Hoy } from './pantallas/Hoy.jsx';
 import { Planes } from './pantallas/Planes.jsx';
 import { Productos } from './pantallas/Productos.jsx';
-import { Agente, Vitrina } from './pantallas/Proximamente.jsx';
+import { Agente } from './pantallas/Proximamente.jsx';
 import { Registro } from './pantallas/Registro.jsx';
+import { Vitrina } from './pantallas/Vitrina.jsx';
 
 const PANTALLAS = { hoy: Hoy, productos: Productos, vitrina: Vitrina, agente: Agente, planes: Planes, cuenta: Cuenta };
 const VALIDAS = new Set(Object.keys(PANTALLAS));

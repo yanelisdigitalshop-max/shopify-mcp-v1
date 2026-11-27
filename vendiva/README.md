@@ -14,7 +14,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Parte 3 | Buscador y tendencias con datos de FastMoss (60 búsquedas al mes en Gratis; tendencias solo de pago) | Código listo y probado con un FastMoss de mentira. **Falta la llave de FastMoss** |
 | Parte 4 | Videos con IA (Runway Gen-4 Turbo): 3 videos cortos, 3 desde la foto y 3 GIFs por producto; créditos de texto y de video por separado | Código listo y probado con un Runway de mentira. **Falta la llave de Runway** |
 | Parte 5 | Voz (hecha en la Parte 4) y Programar: su calendario de publicaciones | Lista para revisar |
-| Parte 6 | Textos para 4 redes y Vitrina | Pendiente |
+| Parte 6 | Textos para 4 redes y Vitrina | Lista para revisar (probada con una IA de mentira) |
 | Parte 7 | Pagos (primero en modo de prueba) | Pendiente |
 | Parte 8 | Publicar en Apple y Google | Pendiente |
 
@@ -115,6 +115,8 @@ server/
   servicios/mezcla.js  Une la voz con el video al descargarlo (ffmpeg)
   servicios/videos.js  Crear videos, revisar los que Runway termina y devolver créditos si fallan
   servicios/publicaciones.js  Programar: su calendario de publicaciones
+  servicios/textos-redes.js  Textos de cada guion para Instagram, Facebook y Pinterest
+  servicios/vitrina.js  Vitrina (solo Pro): calificaciones y plan
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -207,6 +209,25 @@ Su propio calendario de publicaciones (decisiones de la dueña, 27 nov 2026):
 - **En Hoy, «Tu calendario»:** lo que le toca, lo que viene agrupado por día, y lo publicado en los últimos 7 días (con «Deshacer»).
 - **Reglas del servidor** (`shared/programar.js`): la hora viaja con su zona horaria (la del teléfono); no se acepta una hora pasada (con 5 minutos de tolerancia) ni a más de 90 días. Cada guion o video tiene a lo más una publicación pendiente: programarlo otra vez cambia la hora. Tope de seguridad de 60 pendientes a la vez (no es un límite de plan). Si borra el producto, lo suyo sale del calendario.
 - **Rutas:** `POST /api/publicaciones`, `PATCH /api/publicaciones/:id` (`programadaPara` y/o `publicada`), `DELETE /api/publicaciones/:id`. Tabla `publicaciones` (migración `010_programar.sql`).
+
+## Parte 6: textos para 4 redes y Vitrina
+
+Decisiones de la dueña (27 nov 2026):
+
+**Textos para sus redes**
+- En cada guion, el botón **«Textos para mis redes»** escribe, a pedido, un texto adaptado a cada red: Instagram y Facebook con texto y hashtags a su estilo; Pinterest con título y descripción. TikTok no: el guion ya trae su texto.
+- **Solo para las redes que ella marcó.** Si solo marcó TikTok, se le invita a marcar las otras en Mi cuenta.
+- **1 crédito de texto por cada red** (`COSTOS_CREDITOS.textoRed`), con el aviso de costo antes. El servidor exige el costo aceptado, que depende de cuántas redes marcó. Gratis frena si no alcanza (sigue con sus 30 créditos al mes); los planes de pago no frenan. Si la IA falla, se devuelve todo. Volver a crearlos cobra otra vez y reemplaza a los anteriores.
+- **Sus usuarios:** en Mi cuenta, campos opcionales para su usuario de Instagram, Facebook y Pinterest, solo para las redes marcadas. Claude puede usarlos para invitar a seguirla. Nunca contraseñas.
+- Ruta: `POST /api/creaciones/:id/guiones/:numero/textos-redes` `{ costoAceptado }`. Tabla `textos_redes`.
+
+**Vitrina (solo plan Pro, sin créditos extra)**
+- Ella escribe sus **estrellas** (1 a 5, con un decimal), el **número de reseñas** y **de qué se quejan** (lista fija en `QUEJAS_VITRINA` más una queja libre). Vendiva no entra a su TikTok.
+- Claude escribe un **plan** cada vez que actualiza la calificación: prioridades con pasos, una respuesta para reseñas negativas, qué evitar y cuándo revisar. Las instrucciones prohíben reseñas falsas, pedir reseñas a cambio de algo y prometer que la calificación va a subir.
+- **Historial:** cada calificación queda guardada (`vitrina_calificaciones`); se muestran las últimas 12 y cuánto subió o bajó.
+- **Aviso si baja de 4**, en la Vitrina y arriba en Hoy.
+- Si la IA falla, la calificación igual queda guardada y el plan se pide otra vez con «Crear mi plan» (`POST /api/vitrina/:id/plan`).
+- **Gratis, Esencial y Crecimiento** ven el aviso «Subir de plan», igual que en Tendencias; el servidor no deja guardar (`SOLO_PRO`) ni manda su historial. Quien eligió el objetivo «Subir la calificación de mi vitrina» sin ser Pro también ve el aviso en Hoy. La tarjeta de cada plan en Planes dice si incluye la Vitrina.
 
 ## Decisiones de la dueña sobre la Parte 1
 

@@ -1,6 +1,6 @@
-// Tarjeta de un plan. Muestra solo los datos fijos: precio, créditos (texto y video) y productos.
+// Tarjeta de un plan. Muestra solo los datos fijos: precio, créditos (texto y video), productos, buscador y Vitrina (solo Pro).
 
-import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, formatoNumero, planFrenaEnCero } from '../../shared/datos.js';
+import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, esPlanPro, formatoNumero, planFrenaEnCero } from '../../shared/datos.js';
 
 export function PlanCard({ plan, actual = false }) {
   return (
@@ -39,6 +39,10 @@ export function PlanCard({ plan, actual = false }) {
         <div className="flex items-baseline justify-between gap-3">
           <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>Buscador de productos</dt>
           <dd className="font-bold">{planFrenaEnCero(plan.id) ? `${LIMITES_GRATIS.busquedasMes} al mes` : 'Sin límite'}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className={actual ? 'text-orange-100/75' : 'text-stone-600'}>Vitrina: tu calificación y un plan para mantenerla arriba de 4</dt>
+          <dd className="shrink-0 font-bold">{esPlanPro(plan.id) ? 'Incluida' : 'No'}</dd>
         </div>
       </dl>
     </div>

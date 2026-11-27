@@ -135,8 +135,8 @@ export function guionComoTexto(guion, modo) {
     .trim();
 }
 
-/** `programar`: el botón para ponerlo en su calendario (Parte 5). */
-export function ScriptCard({ numero, guion, modo, alCambiarModo, abiertoAlInicio = false, programar = null }) {
+/** `programar`: el botón para ponerlo en su calendario (Parte 5). `textosRedes`: sus otras redes (Parte 6). */
+export function ScriptCard({ numero, guion, modo, alCambiarModo, abiertoAlInicio = false, programar = null, textosRedes = null }) {
   const [abierto, setAbierto] = useState(abiertoAlInicio);
   const publicar = `${guion.caption}\n\n${guion.hashtags.join(' ')}`;
 
@@ -193,10 +193,12 @@ export function ScriptCard({ numero, guion, modo, alCambiarModo, abiertoAlInicio
             </BotonCopiar>
           </div>
 
+          {textosRedes}
+
           <div className="flex items-start gap-3">
             <Clock className="mt-0.5 h-5 w-5 shrink-0 text-orange-800" aria-hidden="true" />
             <p className="text-base leading-snug text-stone-700">
-              <span className="font-semibold text-stone-900">Hora sugerida: {guion.mejorHora.hora}.</span> {guion.mejorHora.motivo}
+              <span className="font-semibold text-stone-900">Hora sugerida: {guion.mejorHora.hora.replace(/\.$/, "")}.</span> {guion.mejorHora.motivo}
             </p>
           </div>
         </div>

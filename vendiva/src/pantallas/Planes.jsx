@@ -67,7 +67,7 @@ export function Planes() {
             {limites.guionesMax == null
               ? 'Los guiones no gastan créditos.'
               : `Los guiones no gastan créditos hasta ${limites.guionesMax} veces al mes; después, 1 crédito cada vez.`}{' '}
-            Los créditos de texto son para el guion de en vivo, las respuestas y los GIFs; los de video, solo para videos
+            Los créditos de texto son para el guion de en vivo, las respuestas, los GIFs y los textos para tus redes; los de video, solo para videos
             {creditos.videoGratis?.incluido ? ' (en el plan Gratis viene 1 video corto gratis al mes)' : ''}. Los paquetes de créditos son de video y no vencen.
           </span>
         </p>

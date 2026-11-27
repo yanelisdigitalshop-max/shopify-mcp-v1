@@ -8,6 +8,12 @@ import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { BotonAtras } from './Acceso.jsx';
 import { ICONO_MODO, ICONO_OBJETIVO } from './Registro.jsx';
 
+const USUARIOS_REDES = [
+  { red: 'instagram', nombre: 'Instagram', campo: 'usuarioInstagram', max: 30 },
+  { red: 'facebook', nombre: 'Facebook', campo: 'usuarioFacebook', max: 50 },
+  { red: 'pinterest', nombre: 'Pinterest', campo: 'usuarioPinterest', max: 30 },
+];
+
 const cuando = (iso) => new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
 
 function describir({ tipo, detalle }) {
@@ -29,6 +35,10 @@ function describir({ tipo, detalle }) {
       if (!que) return null;
       return `Creaste ${que} para «${detalle.nombre}»${detalle.creditos ? ` (${detalle.creditos} créditos)` : ''}`;
     }
+    case 'textos_redes':
+      return `Creaste textos para tus redes de «${detalle.titulo}»${detalle.creditos ? ` (${detalle.creditos} créditos)` : ''}`;
+    case 'vitrina_actualizada':
+      return `Escribiste la calificación de tu vitrina: ${String(detalle.estrellas).replace('.', ',')} estrellas`;
     case 'publicacion_programada':
       return `Programaste «${detalle.titulo}»`;
     case 'publicacion_hecha':
@@ -51,6 +61,9 @@ export function Cuenta({ alVolver }) {
     modoGrabacion: perfil.modoGrabacion,
     objetivo: perfil.objetivo,
     usuarioTiktok: perfil.usuarioTiktok ?? '',
+    usuarioInstagram: perfil.usuarioInstagram ?? '',
+    usuarioFacebook: perfil.usuarioFacebook ?? '',
+    usuarioPinterest: perfil.usuarioPinterest ?? '',
     redes: perfil.redes,
   });
   const poner = (campo, valor) => {
@@ -63,7 +76,10 @@ export function Cuenta({ alVolver }) {
   const enviar = (e) => {
     e.preventDefault();
     setGuardado(false);
-    guardar.ejecutar(f);
+    // Los usuarios de las redes que no marcó no se mandan: así un dato escondido no frena el guardado.
+    const cambios = { ...f };
+    for (const u of USUARIOS_REDES) if (!f.redes.includes(u.red)) delete cambios[u.campo];
+    guardar.ejecutar(cambios);
   };
 
   const actividad = historial.map((h) => ({ ...h, texto: describir(h) })).filter((h) => h.texto).slice(0, 6);
@@ -127,6 +143,22 @@ export function Cuenta({ alVolver }) {
               <Opcion key={r.id} multiple activa={f.redes.includes(r.id)} alElegir={() => alternarRed(r.id)} titulo={r.nombre} />
             ))}
           </div>
+          {/* Parte 6: solo para las redes que marcó. Opcionales; nunca contraseñas. */}
+          {USUARIOS_REDES.filter((u) => f.redes.includes(u.red)).map((u) => (
+            <Campo
+              key={u.red}
+              etiqueta={`Tu usuario de ${u.nombre} (opcional)`}
+              antes="@"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={f[u.campo]}
+              onChange={(e) => poner(u.campo, e.target.value.replace(/^@+/, '').replace(/\s/g, ''))}
+              error={errores[u.campo]}
+              maxLength={u.max}
+            />
+          ))}
+          <p className="text-base leading-snug text-stone-600">Vendiva nunca te pide la contraseña de tus redes, no entra a tus cuentas y no publica por ti.</p>
         </section>
 
         <div className="space-y-3">

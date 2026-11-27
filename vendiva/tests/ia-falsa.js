@@ -68,6 +68,23 @@ export const PLAN_VIDEO = {
   textoEnPantalla: 'Sin calor',
 };
 
+export const TEXTOS_REDES = {
+  instagram: { texto: 'Así alisé mi cabello sin plancha. ¿Lo probarías? Cuéntame abajo.', hashtags: ['#cabello', '#frizz', '#sinplancha', '#rizos', '#cepillo'] },
+  facebook: { texto: 'Les cuento: probé este cepillo y así me fue. ¿Alguien más lo usa?', hashtags: ['#cabello'] },
+  pinterest: { titulo: 'Cepillo alisador sin calor para cabello con frizz', descripcion: 'Cómo alisar el cabello rizado sin plancha con un cepillo de cerdas suaves.' },
+};
+
+export const PLAN_VITRINA = {
+  resumen: 'Tu vitrina está en 3,8. Enfócate en que tus videos muestren el producto tal como es.',
+  prioridades: [
+    { titulo: 'Muestra la medida real', porque: 'Se quejan de que no es como se ve.', pasos: ['Pon el producto junto a algo conocido.', 'Di el tamaño en voz alta.'] },
+    { titulo: 'Responde las dudas', porque: 'Las preguntas sin respuesta bajan la confianza.', pasos: ['Revisa tus comentarios cada día.'] },
+  ],
+  respuestaResena: { cuando: 'Si alguien dice que no era como en el video', texto: 'Gracias por contarme. Voy a mostrarlo mejor en mis próximos videos.' },
+  queEvitar: ['Prometer resultados.', 'Usar fotos que no son del producto.'],
+  proximaRevision: 'Vuelve a escribir tu calificación en una semana.',
+};
+
 /**
  * @param {object} [comportamiento]
  * @param {(n: number, pedido: string) => string | Error | undefined} [comportamiento.responder]
@@ -92,6 +109,10 @@ export function crearIaFalsa({ responder, demoraMs = 0 } = {}) {
         else if (pedido.includes('guion completo de un en vivo')) texto = JSON.stringify(EN_VIVO);
         else if (pedido.includes('Diseña 3 GIFs')) texto = JSON.stringify(GIFS);
         else if (pedido.includes('con una IA de video (Runway)')) texto = JSON.stringify(PLAN_VIDEO);
+        else if (pedido.includes('Escribe el texto para publicar en cada una')) {
+          const redes = /solo con estas redes \(([^)]+)\)/.exec(pedido)[1].split(', ');
+          texto = JSON.stringify(Object.fromEntries(redes.map((r) => [r, TEXTOS_REDES[r]])));
+        } else if (pedido.includes('calificación de su vitrina')) texto = JSON.stringify(PLAN_VITRINA);
         else texto = JSON.stringify(RESPUESTAS);
       }
       return { texto, modelo: 'ia-de-prueba', uso: { entrada: 100, salida: 200 } };

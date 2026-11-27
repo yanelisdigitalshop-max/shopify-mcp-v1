@@ -13,6 +13,7 @@ import { BotonCopiar, ScriptCard } from '../componentes/ScriptCard.jsx';
 import { AvisoError, Boton, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { BotonProgramar } from '../componentes/Programar.jsx';
+import { TextosRedes } from '../componentes/TextosRedes.jsx';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700';
 
@@ -128,6 +129,7 @@ export function SeccionGuiones({ producto, modoPreferido, irA }) {
                     sugerida={guion.mejorHora?.hora}
                   />
                 }
+                textosRedes={<TextosRedes creacionId={creacion.id} numero={i + 1} titulo={guion.titulo} producto={producto} irA={irA} />}
               />
             ))}
           </div>

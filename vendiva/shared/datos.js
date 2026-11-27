@@ -36,6 +36,7 @@ export const COSTOS_CREDITOS = {
   guionEnVivo: 10, // 1 guion de en vivo
   respuestasComentarios: 3, // 3 respuestas para comentarios
   vozIA: 2, // 1 narración con voz de IA (ElevenLabs), créditos de texto; decisión de la dueña, 25 nov 2026
+  textoRed: 1, // Parte 6: 1 texto para una red (Instagram, Facebook o Pinterest), créditos de texto; decisión de la dueña, 27 nov 2026
 };
 
 // Lo que la IA escribe en la Parte 2 y lo que cuesta cada cosa.
@@ -69,6 +70,26 @@ export const VOZ_REAL_MAX_SEGUNDOS = DURACION_VIDEO_SEGUNDOS; // lo que dura el 
 
 /** Esencial, Crecimiento y Pro. Tendencias, buscador sin límite y productos sin tope son solo de pago. */
 export const esPlanDePago = (planId) => planId !== 'gratis';
+
+// Parte 6: textos para las otras redes (TikTok ya tiene su texto en cada guion).
+// Solo para las redes que ella marcó. 1 crédito de texto por cada red (decisión de la dueña, 27 nov 2026).
+export const REDES_CON_TEXTO = ['instagram', 'facebook', 'pinterest'];
+
+// Parte 6: Vitrina. Solo plan Pro, sin créditos extra (decisión de la dueña, 27 nov 2026).
+// Ella escribe sus estrellas, cuántas reseñas tiene y de qué se quejan; Claude le escribe un plan.
+export const VITRINA = { minimoEstrellas: 4 };
+export const QUEJAS_VITRINA = [
+  { id: 'envio_lento', nombre: 'El envío tarda' },
+  { id: 'no_es_como_se_ve', nombre: 'El producto no es como se ve en el video' },
+  { id: 'calidad', nombre: 'La calidad no es buena' },
+  { id: 'llego_danado', nombre: 'Llegó dañado o incompleto' },
+  { id: 'talla_medida', nombre: 'La talla o la medida no era la esperada' },
+  { id: 'no_funciona', nombre: 'No funcionó como esperaban' },
+  { id: 'atencion', nombre: 'No respondieron sus preguntas' },
+];
+
+/** La Vitrina es solo del plan Pro. */
+export const esPlanPro = (planId) => planId === 'pro';
 
 /** El plan Gratis frena cuando el saldo no alcanza. Los planes de pago no frenan: es decisión de la dueña. */
 export const planFrenaEnCero = (planId) => planId === 'gratis';

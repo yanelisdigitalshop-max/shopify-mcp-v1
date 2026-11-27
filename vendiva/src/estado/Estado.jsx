@@ -100,6 +100,12 @@ export function ProveedorEstado({ children }) {
       cambiarPublicacion: (id, cambios) => guardar(api.patch(`/publicaciones/${id}`, cambios)),
       quitarPublicacion: (id) => guardar(api.del(`/publicaciones/${id}`)),
 
+      // Parte 6: textos de un guion para sus otras redes (1 crédito de texto por red) y Vitrina (solo Pro).
+      crearTextosRedes: (creacionId, numero, costoAceptado) =>
+        guardar(api.post(`/creaciones/${creacionId}/guiones/${numero}/textos-redes`, { costoAceptado }, { esperaMs: ESPERA_IA_MS })),
+      guardarVitrina: (datos) => guardar(api.post('/vitrina', datos, { esperaMs: ESPERA_IA_MS })),
+      reintentarPlanVitrina: (id) => guardar(api.post(`/vitrina/${id}/plan`, {}, { esperaMs: ESPERA_IA_MS })),
+
       // Baja el archivo al teléfono; el servidor lo marca como descargado y se trae el estado nuevo.
       async descargarVideo(videoId) {
         const r = await api.descargar(`/videos/${videoId}/descargar`);

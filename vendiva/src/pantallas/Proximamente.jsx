@@ -1,8 +1,8 @@
-// Vitrina y Agente todavía no existen. Se dice tal cual: sin botones de adorno
+// El Agente todavía no existe. Se dice tal cual: sin botones de adorno
 // ni datos inventados.
 
 import { EmptyState } from '../componentes/EmptyState.jsx';
-import { IlustracionAgente, IlustracionVitrina } from '../componentes/Ilustraciones.jsx';
+import { IlustracionAgente } from '../componentes/Ilustraciones.jsx';
 import { AunNo, Tarjeta } from '../componentes/base.jsx';
 
 function Pendiente({ titulo, ilustracion, encabezado, texto }) {
@@ -13,17 +13,6 @@ function Pendiente({ titulo, ilustracion, encabezado, texto }) {
         <EmptyState ilustracion={ilustracion} marca={<AunNo />} titulo={encabezado} texto={texto} />
       </Tarjeta>
     </div>
-  );
-}
-
-export function Vitrina() {
-  return (
-    <Pendiente
-      titulo="Vitrina"
-      ilustracion={IlustracionVitrina}
-      encabezado="Aquí vas a cuidar tu calificación"
-      texto="Vas a escribir la calificación que ves en TikTok y a recibir un plan para mantenerla arriba de 4 estrellas. Llega en la Parte 6 y es parte del plan Pro."
-    />
   );
 }
 

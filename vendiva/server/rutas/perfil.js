@@ -16,6 +16,9 @@ const EN_PERFILES = {
   modoGrabacion: 'modo_grabacion',
   objetivo: 'objetivo',
   usuarioTiktok: 'usuario_tiktok',
+  usuarioInstagram: 'usuario_instagram',
+  usuarioFacebook: 'usuario_facebook',
+  usuarioPinterest: 'usuario_pinterest',
 };
 
 function armarUpdate(mapa, datos) {

@@ -368,3 +368,121 @@ Devuelve este JSON:
 
   return pedirJson(ia, { instrucciones, esquema: esquemaVideo, maxTokens: 4000, esfuerzo: 'low' });
 }
+
+// ── Parte 6: textos para sus otras redes (1 crédito de texto por red) ──────────
+
+const ESQUEMAS_RED = {
+  instagram: z.object({ texto: texto(2200), hashtags }),
+  facebook: z.object({
+    texto: texto(2000),
+    // En Facebook los hashtags son opcionales: de 0 a 3.
+    hashtags: z
+      .array(z.string())
+      .default([])
+      .transform((v) => [...new Set(v.map((h) => `#${h.replace(/[#\s]/g, '')}`).filter((h) => h.length > 2 && h.length <= 30))].slice(0, 3)),
+  }),
+  pinterest: z.object({ titulo: texto(100), descripcion: texto(500) }),
+};
+
+const COMO_ES_CADA_RED = {
+  instagram:
+    '"instagram": para un Reel. "texto": la primera línea engancha (se corta a las 125 letras), luego 2 o 3 frases cortas y una invitación a comentar o a guardarlo; puede llevar 1 o 2 emojis. "hashtags": de 5 a 10, mezclando del nicho y del producto.',
+  facebook:
+    '"facebook": para un video en su perfil o en un grupo. "texto": más conversado, como contándole a sus conocidos, de 3 a 5 frases, que invite a comentar. "hashtags": de 0 a 3.',
+  pinterest:
+    '"pinterest": para un pin de video. Pinterest funciona como un buscador: "titulo" de hasta 100 letras con las palabras que alguien buscaría; "descripcion" de 2 o 3 frases con palabras de búsqueda naturales, sin hashtags.',
+};
+
+const ARROBA = { instagram: 'Instagram', facebook: 'Facebook', pinterest: 'Pinterest' };
+
+/**
+ * Textos del guion adaptados a las redes que ella marcó (Instagram, Facebook y/o Pinterest).
+ * TikTok no: el guion ya trae su texto y sus hashtags.
+ */
+export function generarTextosRedes(ia, { perfil, producto, guion, redes, ahora }) {
+  const usuarios = [
+    perfil.usuario_tiktok ? `TikTok: @${perfil.usuario_tiktok}` : null,
+    ...redes.map((r) => (perfil[`usuario_${r}`] ? `${ARROBA[r]}: @${perfil[`usuario_${r}`]}` : null)),
+  ].filter(Boolean);
+
+  const instrucciones = `${describirPedido({ perfil, producto, ahora })}
+
+<guion>
+Título: ${guion.titulo}
+Gancho: ${guion.gancho}
+Texto para TikTok: ${guion.caption}
+Hashtags de TikTok: ${(guion.hashtags ?? []).join(' ')}
+</guion>
+${usuarios.length ? `\n<sus_cuentas>\n${usuarios.join('\n')}\n</sus_cuentas>\n` : ''}
+Ella va a publicar el video de este guion también en otras redes. Escribe el texto para publicar en cada una de estas, adaptado a cómo se escribe en esa red (no copies el de TikTok):
+${redes.map((r) => `- ${COMO_ES_CADA_RED[r]}`).join('\n')}
+
+Reglas:
+- Sobre este producto y este video. Las mismas reglas de honestidad: nada inventado y nada de promesas.
+- Si encaja, puedes invitar a seguirla usando sus cuentas de arriba, tal cual están escritas. No inventes cuentas, enlaces ni códigos de descuento.
+- En Instagram, Facebook y Pinterest no existe el carrito de TikTok: no digas "toca el carrito".
+
+Devuelve este JSON, solo con estas redes (${redes.join(', ')}):
+{
+${redes
+  .map((r) => (r === 'pinterest' ? '  "pinterest": { "titulo": "", "descripcion": "" }' : `  "${r}": { "texto": "", "hashtags": ["#..."] }`))
+  .join(',\n')}
+}`;
+
+  const esquema = z.object(Object.fromEntries(redes.map((r) => [r, ESQUEMAS_RED[r]])));
+  return pedirJson(ia, { instrucciones, esquema, maxTokens: 3000, esfuerzo: 'low' });
+}
+
+// ── Parte 6: el plan de su Vitrina (solo Pro, sin créditos extra) ──────────────
+
+const esquemaPlanVitrina = z.object({
+  resumen: texto(500),
+  prioridades: lista(z.object({ titulo: texto(100), porque: texto(400), pasos: lista(texto(300), { min: 1, max: 4 }) }), { min: 2, max: 5 }),
+  respuestaResena: z.object({ cuando: texto(200), texto: texto(600) }),
+  queEvitar: lista(texto(300), { min: 2, max: 4 }),
+  proximaRevision: texto(250),
+});
+
+/**
+ * Un plan para mantener su calificación arriba de 4 estrellas, con lo que ella escribió:
+ * estrellas, número de reseñas y de qué se quejan. Se escribe de nuevo cada vez que la actualiza.
+ */
+export function generarPlanVitrina(ia, { perfil, productos, calificacion, anteriores, quejas, ahora }) {
+  const historia = anteriores.length
+    ? anteriores.map((c) => `- ${c.fecha}: ${c.estrellas} estrellas, ${c.resenas} reseñas`).join('\n')
+    : '- Es la primera vez que la escribe.';
+  const instrucciones = `<creadora>
+Nicho: ${perfil.nicho ?? 'sin decir'}
+Seguidores (los escribió ella): ${formatoNumero(perfil.seguidores)}
+Productos que muestra: ${productos.length ? productos.join('; ') : 'todavía ninguno guardado'}
+</creadora>
+
+<vitrina>
+Calificación de hoy (${fechaLarga(ahora)}): ${calificacion.estrellas} de 5 estrellas, con ${formatoNumero(calificacion.resenas)} reseñas.
+De qué se quejan: ${quejas.length ? quejas.join('; ') : 'no marcó quejas'}
+Antes:
+${historia}
+</vitrina>
+
+Ella es afiliada de TikTok Shop y quiere que la calificación de su vitrina se mantenga arriba de 4 estrellas. Escríbele un plan práctico.
+
+Lo que tienes que saber:
+- Ella no fabrica, no envía ni pone el precio: eso lo hace la tienda. Lo que sí controla: qué productos elige mostrar, que sus videos muestren el producto tal como es (tamaño, color, talla, lo que trae), lo que promete al hablar, y cómo responde comentarios y preguntas.
+- Para cada queja que marcó, dile qué puede hacer ELLA. Si la queja depende de la tienda (por ejemplo, el envío), dile cómo manejar las expectativas en sus videos y si conviene cambiar de producto.
+- No sabes cómo calcula TikTok la calificación ni cuánto tarda en cambiar: no lo afirmes y no prometas que va a subir.
+- Prohibido sugerir reseñas falsas, pedir reseñas a cambio de algo (descuentos, regalos, dinero), pedir que borren o cambien una reseña, o cualquier cosa que vaya contra las reglas de TikTok Shop.
+- Si la calificación bajó respecto a la anterior, dilo con calma; si subió, reconócelo sin exagerar. Si está debajo de 4, empieza por lo más urgente.
+
+Devuelve este JSON:
+{
+  "resumen": "dos o tres frases: cómo está su vitrina y en qué enfocarse",
+  "prioridades": [
+    { "titulo": "lo primero que conviene hacer", "porque": "por qué, ligado a sus quejas", "pasos": ["acciones concretas que puede hacer esta semana"] }
+  ],
+  "respuestaResena": { "cuando": "para qué tipo de comentario o reseña negativa", "texto": "una respuesta amable y honesta lista para copiar" },
+  "queEvitar": ["cosas que le pueden bajar la calificación"],
+  "proximaRevision": "cuándo volver a escribir su calificación y qué mirar"
+}`;
+
+  return pedirJson(ia, { instrucciones, esquema: esquemaPlanVitrina, maxTokens: 4000, esfuerzo: 'low' });
+}
