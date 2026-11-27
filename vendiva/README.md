@@ -310,10 +310,22 @@ Decisiones de la dueña (27 nov 2026):
 
 Para conectar los avisos (lo hace la dueña): crear un proyecto en Firebase con las apps `com.vendiva.app` de iPhone y Android; poner `google-services.json` en `android/app/` y `GoogleService-Info.plist` en `ios/App/App/` (no se suben al repositorio si tienen datos privados); subir la llave de APNs de Apple a Firebase; crear una cuenta de servicio con permiso de Firebase Cloud Messaging y poner su JSON en `VENDIVA_FIREBASE_CUENTA_SERVICIO`. Sin eso, la app funciona igual pero sin avisos al teléfono.
 
+**Pagos en las apps: opción (b)** (decisión de la dueña, 27 nov 2026). En la app del teléfono no se compra nada adentro: los botones de planes y paquetes abren la página de Planes de Vendiva en el navegador del teléfono (Safari o Chrome), ya con su sesión, gracias a un **enlace de un solo uso que vence en 10 minutos** (`POST /api/cuenta/enlace-web` → `/?acceso=...#planes`; en la base solo queda su huella). Ahí paga con Stripe como en la web. Al volver a la app, el estado se pone al día solo. Cancelar, seguir con el plan y «Mis recibos y forma de pago» siguen en la app (no cobran).
+- **Apple (tienda de EE. UU.):** desde mayo de 2025 se permiten botones y enlaces a pagar en la web. Sigue sin resolverse si Apple puede exigir además su propio cobro (guía 3.1.3(b)). **Si Apple lo exige, se agrega su cobro (StoreKit)** como otra forma de pagar los mismos planes; el código quedó preparado para eso en un solo lugar (`HojaPagoWeb` en `src/pantallas/Planes.jsx` y `src/nativo.js`).
+- **Google Play (EE. UU.):** hay que inscribir la app en el programa de **enlaces a contenido externo** en Play Console. Google cobra una comisión también por esas ventas y pide reportarlas desde el 1 de octubre de 2026. Las tasas exactas se confirman al inscribirse.
+
 **Pendiente de decisión de la dueña:**
 
-1. **Hosting y dominio** (opciones con precios en el resumen de la conversación; nada contratado).
-2. **Pagos dentro de las apps** (a, b o c). Hasta que se decida, la pestaña Planes de la app abre la página de pago de Stripe dentro de la app, igual que en la web: eso es justo lo que hay que revisar con las reglas de Apple y Google antes de enviar.
+1. **Hosting y dominio** (nada contratado). Precios oficiales confirmados el 27 nov 2026:
+
+   | | Railway | Render | Fly.io |
+   |---|---|---|---|
+   | Plan de la cuenta | Hobby $5/mes, incluye $5 de uso | Hobby $0 (personal) o Pro $25/mes fijo | Sin cuota fija |
+   | Servidor | Por uso: ~$10 por GB de memoria al mes, ~$20 por vCPU al mes | Starter $7/mes (512 MB) | shared-cpu-1x 512 MB: $3.69/mes |
+   | Base de datos | Por uso (la mantiene uno mismo) | Desde ~$6–7/mes + $0.30/GB | Managed Postgres Basic $38/mes |
+   | Tráfico | $0.05/GB | Hobby 5 GB incluidos, luego $0.15/GB | según su tabla |
+   | **Estimado para Vendiva** | **~$7–12/mes** | **~$14–16/mes** (o ~$40 con Pro) | **~$42–44/mes** |
+
 3. **Impuestos y revisión legal** de privacidad y términos (siguen siendo borradores).
 
 ## Decisiones de la dueña sobre la Parte 1

@@ -76,9 +76,9 @@ function SinConexion({ error, alReintentar }) {
   );
 }
 
-function Invitada({ sesionVencida }) {
-  const [vista, setVista] = useState(sesionVencida ? 'entrar' : 'bienvenida');
-  const aviso = sesionVencida ? 'Tu sesión se cerró. Entra de nuevo: todo lo tuyo sigue guardado.' : null;
+function Invitada({ sesionVencida, avisoEntrada }) {
+  const [vista, setVista] = useState(sesionVencida || avisoEntrada ? 'entrar' : 'bienvenida');
+  const aviso = avisoEntrada ?? (sesionVencida ? 'Tu sesión se cerró. Entra de nuevo: todo lo tuyo sigue guardado.' : null);
   // Al salir se olvida la pestaña: la próxima vez empieza en Hoy.
   useEffect(() => {
     if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
@@ -132,7 +132,7 @@ function Aplicacion() {
 }
 
 export default function App() {
-  const { fase, datos, errorArranque, sesionVencida, acciones } = useEstado();
+  const { fase, datos, errorArranque, sesionVencida, avisoEntrada, acciones } = useEstado();
 
   // Parte 8: privacidad, términos y cómo borrar la cuenta se ven sin iniciar sesión.
   const ruta = window.location.pathname.replace(/\/+$/, '');
@@ -140,7 +140,7 @@ export default function App() {
 
   if (fase === 'cargando') return <Arrancando />;
   if (fase === 'error') return <SinConexion error={errorArranque} alReintentar={acciones.cargar} />;
-  if (!datos) return <Invitada key={sesionVencida ? 'vencida' : 'nueva'} sesionVencida={sesionVencida} />;
+  if (!datos) return <Invitada key={sesionVencida ? 'vencida' : 'nueva'} sesionVencida={sesionVencida} avisoEntrada={avisoEntrada} />;
   if (!datos.perfil.onboardingCompleto) return <Registro />;
   return <Aplicacion />;
 }

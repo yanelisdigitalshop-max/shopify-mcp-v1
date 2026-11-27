@@ -107,6 +107,46 @@ export function rutasCuenta({ db, config, reloj, stripe }) {
     res.json({ ok: true });
   });
 
+  // Parte 8, pagos opción (b): en la app del teléfono, los pagos se hacen en la web.
+  // La app pide un enlace de acceso de un solo uso (10 minutos) y lo abre en el navegador.
+  const sha = (v) => crypto.createHash('sha256').update(v).digest('hex');
+  const MINUTOS_ENLACE = 10;
+
+  r.post('/cuenta/enlace-web', exigirSesion, async (req, res) => {
+    validar(z.object({ destino: z.literal('planes') }).strict(), req.body);
+    const token = crypto.randomBytes(32).toString('base64url');
+    const ahora = reloj();
+    await db.query('insert into enlaces_acceso (token_hash, usuaria_id, destino, vence_en) values ($1, $2, $3, $4)', [
+      sha(token),
+      req.usuariaId,
+      'planes',
+      new Date(ahora.getTime() + MINUTOS_ENLACE * 60000),
+    ]);
+    // Se aprovecha para limpiar los vencidos.
+    await db.query('delete from enlaces_acceso where vence_en < $1', [new Date(ahora.getTime() - 24 * 3600000)]);
+    const origen = config.origenApp ?? `${req.protocol}://${req.get('host')}`;
+    res.json({ url: `${origen}/?acceso=${token}#planes` });
+  });
+
+  r.post('/cuenta/acceso', frenoPorIp, async (req, res) => {
+    const { token } = validar(z.object({ token: z.string().min(20).max(200) }).strict(), req.body);
+    const ahora = reloj();
+    const usado = await db.query(
+      `update enlaces_acceso set usado_en = $2
+        where token_hash = $1 and usado_en is null and vence_en > $2
+        returning usuaria_id`,
+      [sha(token), ahora],
+    );
+    const usuariaId = usado.rows[0]?.usuaria_id;
+    if (!usuariaId) {
+      throw new ErrorApp(401, 'ENLACE_VENCIDO', 'Este enlace ya se usó o venció. Vuelve a la app y toca otra vez el botón, o entra con tu correo y tu contraseña.', {
+        reintentable: false,
+      });
+    }
+    await abrirSesion(db, config, req, res, usuariaId);
+    res.json({ estado: await construirEstado(db, usuariaId, reloj()) });
+  });
+
   // Parte 8: borrar la cuenta. Pide su contraseña otra vez: es para siempre.
   r.post('/cuenta/borrar', exigirSesion, frenoPorIp, async (req, res) => {
     const { contrasena } = validar(

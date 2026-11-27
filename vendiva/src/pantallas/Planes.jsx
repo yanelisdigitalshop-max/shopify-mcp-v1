@@ -5,12 +5,13 @@
 //   - Pagar abre la página de pago de Stripe; al volver, el servidor ya sabe si se pagó.
 
 import { useEffect, useState } from 'react';
-import { CalendarClock, CheckCircle2, CreditCard, FileText, FlaskConical, Info, Package, Receipt, TriangleAlert } from 'lucide-react';
+import { CalendarClock, CheckCircle2, CreditCard, ExternalLink, FileText, FlaskConical, Info, Package, Receipt, TriangleAlert } from 'lucide-react';
 import { ORDEN_PLANES, PAQUETES_CREDITOS, PLANES, formatoNumero } from '../../shared/datos.js';
 import { TERMINOS, TERMINOS_ES_BORRADOR } from '../../shared/terminos.js';
 import { PlanCard } from '../componentes/PlanCard.jsx';
 import { AvisoError, Boton, Casilla, Hoja, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
+import { abrirEnNavegador, esApp } from '../nativo.js';
 
 /** '2026-12-01' -> '1 de diciembre' (sin pasar por zonas horarias). */
 function fechaLarga(iso) {
@@ -28,8 +29,8 @@ function Dato({ etiqueta, valor, detalle }) {
   );
 }
 
-/** Ir a la página de pago de Stripe (o de su forma de pago). */
-const irA = (url) => window.location.assign(url);
+/** Ir a la página de pago de Stripe (o de su forma de pago). En la app, se abre en el navegador. */
+const irA = (url) => abrirEnNavegador(url);
 
 // ── Términos (borrador) ────────────────────────────────────────────────────────
 
@@ -201,6 +202,57 @@ function HojaPago({ pedido, alCerrar }) {
   );
 }
 
+// ── En la app del teléfono: pagar en la web (opción b, decisión de la dueña, 27 nov 2026) ──
+
+/**
+ * En la app no se compra nada adentro: se abre la página de Planes de Vendiva en el navegador
+ * del teléfono, ya con su sesión (enlace de un solo uso), y ahí se paga como en la web.
+ */
+function HojaPagoWeb({ abierta, alCerrar }) {
+  const { acciones } = useEstado();
+  const [abierto, setAbierto] = useState(false);
+  const abrir = useAccion(async () => {
+    const { url } = await acciones.enlaceWeb();
+    await abrirEnNavegador(url);
+    setAbierto(true);
+  });
+  const cerrar = () => {
+    setAbierto(false);
+    abrir.limpiar();
+    alCerrar();
+  };
+  return (
+    <Hoja abierta={abierta} alCerrar={() => !abrir.cargando && cerrar()} titulo="Pagar en la web de Vendiva">
+      {abierto ? (
+        <>
+          <p className="flex items-start gap-3 rounded-2xl bg-amber-100 px-4 py-3 text-lg font-semibold leading-snug text-amber-950" role="status">
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0" aria-hidden="true" />
+            Abrimos tu navegador. Cuando termines, vuelve aquí: tu plan y tus créditos se actualizan solos.
+          </p>
+          <Boton className="mt-5" onClick={cerrar}>
+            Listo
+          </Boton>
+        </>
+      ) : (
+        <>
+          <ul className="space-y-2.5">
+            <Linea>Los planes y los paquetes se pagan en la página web de Vendiva, con Stripe.</Linea>
+            <Linea>Se abre el navegador de tu teléfono, ya con tu cuenta (sin escribir tu contraseña).</Linea>
+            <Linea>Al terminar, vuelve a la app: todo se actualiza solo.</Linea>
+          </ul>
+          {abrir.error && <AvisoError className="mt-4" error={abrir.error} alReintentar={abrir.reintentar} reintentando={abrir.cargando} />}
+          <Boton className="mt-5" icono={ExternalLink} onClick={() => abrir.ejecutar()} cargando={abrir.cargando} textoCargando="Abriendo…">
+            Abrir en el navegador
+          </Boton>
+          <Boton variante="secundario" className="mt-3" onClick={cerrar} disabled={abrir.cargando}>
+            Ahora no
+          </Boton>
+        </>
+      )}
+    </Hoja>
+  );
+}
+
 // ── Su suscripción ─────────────────────────────────────────────────────────────
 
 function HojaCancelar({ abierta, alCerrar }) {
@@ -347,7 +399,9 @@ function AvisoRegreso({ regreso, confirmado }) {
   return (
     <p className="anim-entrar mt-4 flex items-start gap-3 rounded-2xl bg-amber-100 px-4 py-3 text-base font-semibold leading-snug text-amber-950" role="status">
       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-      {confirmado ? '¡Listo! Tu pago quedó confirmado.' : 'Recibimos tu pago. Estamos esperando la confirmación de Stripe; tarda unos segundos…'}
+      {confirmado
+        ? '¡Listo! Tu pago quedó confirmado. Si empezaste en la app de Vendiva, ya puedes volver a ella.'
+        : 'Recibimos tu pago. Estamos esperando la confirmación de Stripe; tarda unos segundos…'}
     </p>
   );
 }
@@ -360,7 +414,10 @@ export function Planes() {
   const [pedido, setPedido] = useState(null);
   const [cancelar, setCancelar] = useState(false);
   const [verTerminos, setVerTerminos] = useState(false);
+  const [pagoWeb, setPagoWeb] = useState(false);
   const { regreso, confirmado } = useRegresoDePago();
+  // En la app del teléfono no se compra adentro: todo lo que cobra se hace en la web.
+  const pedir = (p) => (esApp() ? setPagoWeb(true) : setPedido(p));
   const sus = pagos.suscripcion;
 
   /** El botón y la nota de cada tarjeta de plan. */
@@ -381,7 +438,7 @@ export function Planes() {
     const sube = !sus || p.precioMes > plan.precioMes;
     return {
       accion: (
-        <Boton variante={sube ? 'primario' : 'secundario'} className="min-h-12" onClick={() => setPedido({ tipo: 'plan', plan: id })}>
+        <Boton variante={sube ? 'primario' : 'secundario'} className="min-h-12" onClick={() => pedir({ tipo: 'plan', plan: id })}>
           {sus ? (sube ? `Subir a ${p.nombre}` : `Cambiar a ${p.nombre}`) : `Elegir ${p.nombre}`}
         </Boton>
       ),
@@ -470,7 +527,7 @@ export function Planes() {
                 </p>
                 <p className="mt-2 text-2xl font-extrabold tabular-nums text-stone-900">{formatoNumero(p.creditos)}</p>
                 <p className="text-sm text-stone-600">créditos de video</p>
-                <Boton variante="suave" className="mt-3 min-h-12" onClick={() => setPedido({ tipo: 'paquete', paquete: p.id })}>
+                <Boton variante="suave" className="mt-3 min-h-12" onClick={() => pedir({ tipo: 'paquete', paquete: p.id })}>
                   ${p.precio}
                 </Boton>
               </Tarjeta>
@@ -494,6 +551,7 @@ export function Planes() {
       )}
 
       {pedido && <HojaPago pedido={pedido} alCerrar={() => setPedido(null)} />}
+      <HojaPagoWeb abierta={pagoWeb} alCerrar={() => setPagoWeb(false)} />
       {sus && <HojaCancelar abierta={cancelar} alCerrar={() => setCancelar(false)} />}
       <HojaTerminos abierta={verTerminos} alCerrar={() => setVerTerminos(false)} />
     </div>

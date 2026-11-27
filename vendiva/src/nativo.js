@@ -89,3 +89,31 @@ export async function escucharNotificaciones(enviar) {
   });
   await activarNotificaciones(enviar, { pedirPermiso: false }).catch(() => {});
 }
+
+// ── Parte 8, pagos opción (b): pagar en la web ─────────────────────────────────
+
+/** Abre una dirección en el navegador del teléfono (Safari o Chrome), fuera de la app. */
+export async function abrirEnNavegador(url) {
+  if (!esApp()) {
+    window.location.assign(url);
+    return;
+  }
+  const { AppLauncher } = await import('@capacitor/app-launcher');
+  await AppLauncher.openUrl({ url });
+}
+
+/** Cuando la app vuelve al frente (por ejemplo, después de pagar en el navegador). Devuelve cómo dejar de escuchar. */
+export function alVolverALaApp(fn) {
+  if (!esApp()) return () => {};
+  let quitar = null;
+  let cancelado = false;
+  import('@capacitor/app').then(async ({ App }) => {
+    const h = await App.addListener('appStateChange', ({ isActive }) => isActive && fn());
+    if (cancelado) h.remove();
+    else quitar = () => h.remove();
+  });
+  return () => {
+    cancelado = true;
+    quitar?.();
+  };
+}

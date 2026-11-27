@@ -4,7 +4,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { api, ESPERA_IA_MS } from '../api.js';
-import { esApp, escucharNotificaciones, tokenActual } from '../nativo.js';
+import { alVolverALaApp, esApp, escucharNotificaciones, tokenActual } from '../nativo.js';
 
 const Contexto = createContext(null);
 
@@ -13,6 +13,7 @@ const INICIAL = {
   errorArranque: null,
   datos: null, // null = sin sesión. Con sesión: { usuaria, perfil, nivel, plan, creditos, productos, creaciones, limites, historial }
   sesionVencida: false,
+  avisoEntrada: null, // Parte 8: por qué no sirvió un enlace de acceso de la app
 };
 
 function reductor(estado, accion) {
@@ -27,6 +28,8 @@ function reductor(estado, accion) {
       return { ...estado, datos: accion.estado, sesionVencida: false };
     case 'salio':
       return { ...estado, datos: null, sesionVencida: false };
+    case 'avisoEntrada':
+      return { ...estado, avisoEntrada: accion.aviso };
     case 'sesionVencida':
       return { ...estado, datos: null, sesionVencida: true };
     default:
@@ -52,6 +55,19 @@ export function ProveedorEstado({ children }) {
     return {
       async cargar() {
         despachar({ tipo: 'cargando' });
+        // Parte 8: viene de la app con un enlace de acceso de un solo uso (?acceso=...): se cambia
+        // por una sesión en este navegador y se quita de la dirección.
+        const acceso = new URLSearchParams(window.location.search).get('acceso');
+        if (acceso) {
+          window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+          try {
+            const r = await api.post('/cuenta/acceso', { token: acceso });
+            despachar({ tipo: 'listo', estado: r.estado });
+            return;
+          } catch (error) {
+            despachar({ tipo: 'avisoEntrada', aviso: error.message });
+          }
+        }
         try {
           const r = await api.get('/estado');
           despachar({ tipo: 'listo', estado: r.estado });
@@ -132,6 +148,8 @@ export function ProveedorEstado({ children }) {
 
       // Parte 8: registra este teléfono para los avisos «Te toca publicar».
       registrarTelefono: (token, plataforma) => api.post('/dispositivos', { token, plataforma }),
+      // Parte 8, pagos opción (b): enlace de un solo uso para abrir los Planes en el navegador.
+      enlaceWeb: () => api.post('/cuenta/enlace-web', { destino: 'planes' }),
 
       // Baja el archivo al teléfono; el servidor lo marca como descargado y se trae el estado nuevo.
       async descargarVideo(videoId) {
@@ -166,6 +184,10 @@ export function ProveedorEstado({ children }) {
   const conSesion = Boolean(estado.datos?.usuaria?.id);
   useEffect(() => {
     if (conSesion) escucharNotificaciones(acciones.registrarTelefono).catch(() => {});
+  }, [conSesion, acciones]);
+  useEffect(() => {
+    if (!conSesion) return undefined;
+    return alVolverALaApp(() => acciones.refrescar());
   }, [conSesion, acciones]);
 
   // Mientras haya un video creándose, se revisa cada 10 segundos (aunque ella esté en otra pestaña de la app).
