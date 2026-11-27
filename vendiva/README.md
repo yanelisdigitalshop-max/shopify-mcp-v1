@@ -326,7 +326,7 @@ Para conectar los avisos (lo hace la dueña): crear un proyecto en Firebase con 
    | Tráfico | $0.05/GB | Hobby 5 GB incluidos, luego $0.15/GB | según su tabla |
    | **Estimado para Vendiva** | **~$7–12/mes** | **~$14–16/mes** (o ~$40 con Pro) | **~$42–44/mes** |
 
-3. **Impuestos y revisión legal** de privacidad y términos (siguen siendo borradores).
+2. **Impuestos y revisión legal** de privacidad y términos (siguen siendo borradores).
 
 ## Decisiones de la dueña sobre la Parte 1
 
