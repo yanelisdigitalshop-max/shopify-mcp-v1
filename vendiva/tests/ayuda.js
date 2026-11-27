@@ -4,7 +4,7 @@ import { abrirBase } from '../server/db/index.js';
 import { migrar } from '../server/db/migrar.js';
 import { crearApp } from '../server/app.js';
 
-export async function levantar({ env = {}, reloj, ia, fastmoss, runway, voz } = {}) {
+export async function levantar({ env = {}, reloj, ia, fastmoss, runway, voz, stripe } = {}) {
   const config = leerConfig({
     NODE_ENV: 'test',
     VENDIVA_SCRYPT_N: '1024', // hash rápido solo en pruebas
@@ -23,7 +23,7 @@ export async function levantar({ env = {}, reloj, ia, fastmoss, runway, voz } = 
   await migrar(db);
 
   const estadoReloj = { ahora: null };
-  const app = crearApp({ db, config, reloj: reloj ?? (() => estadoReloj.ahora ?? new Date()), ...(ia ? { ia } : {}), ...(fastmoss ? { fastmoss } : {}), ...(runway ? { runway } : {}), ...(voz ? { voz } : {}) });
+  const app = crearApp({ db, config, reloj: reloj ?? (() => estadoReloj.ahora ?? new Date()), ...(ia ? { ia } : {}), ...(fastmoss ? { fastmoss } : {}), ...(runway ? { runway } : {}), ...(voz ? { voz } : {}), ...(stripe ? { stripe } : {}) });
   const servidor = await new Promise((ok) => {
     const s = app.listen(0, '127.0.0.1', () => ok(s));
   });

@@ -2,7 +2,8 @@
 
 import { DURACION_VIDEO_SEGUNDOS, LIMITES_GRATIS, esPlanPro, formatoNumero, planFrenaEnCero } from '../../shared/datos.js';
 
-export function PlanCard({ plan, actual = false }) {
+/** `accion`: el botón para elegir este plan (Parte 7). `nota`: una línea debajo, por ejemplo «Desde el 1 de enero». */
+export function PlanCard({ plan, actual = false, accion = null, nota = null }) {
   return (
     <div
       className={`sombra-tarjeta relative flex flex-col rounded-3xl p-5 ${
@@ -45,6 +46,12 @@ export function PlanCard({ plan, actual = false }) {
           <dd className="shrink-0 font-bold">{esPlanPro(plan.id) ? 'Incluida' : 'No'}</dd>
         </div>
       </dl>
+      {(accion || nota) && (
+        <div className="mt-auto pt-4">
+          {nota && <p className={`mb-2 text-base leading-snug ${actual ? 'text-amber-300' : 'text-stone-600'}`}>{nota}</p>}
+          {accion}
+        </div>
+      )}
     </div>
   );
 }

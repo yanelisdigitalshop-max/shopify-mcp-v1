@@ -3,8 +3,9 @@
 //   - Voz real (la principal): ella graba su voz en la app. Gratis, sin créditos y sin límite.
 //   - Voz de IA (ElevenLabs): narra el guion del video con una voz femenina en español.
 //       * Cuesta 2 créditos de TEXTO, siempre con el aviso confirmado antes (costoAceptado).
-//       * Plan Gratis: 3 al mes con sus créditos de texto. Pasadas las 3, solo con créditos
-//         de paquete (comprados); si no tiene, frena con "compra créditos o sube de plan".
+//       * Plan Gratis: 3 al mes con sus créditos de texto. Pasadas las 3 se frena hasta el
+//         mes siguiente o hasta subir de plan. Los paquetes son de video: no pagan la voz
+//         (decisión de la dueña, 27 nov 2026).
 //       * Planes de pago: sin límite; los créditos de texto siguen su regla (no frenan).
 //       * Si ElevenLabs falla, se devuelve todo y el uso no cuenta.
 //   - Cada video tiene una sola voz: una nueva reemplaza a la anterior.
@@ -15,7 +16,13 @@ import { MOTOR_VOZ } from '../../shared/datos.js';
 import { ErrorApp, noEncontrado, sinSesion } from '../errores.js';
 import { ErrorVoz } from '../fuentes/elevenlabs.js';
 import { unaALaVez } from './creaciones.js';
-import { cobrar, devolverPorReferencia, pagoVozIA, renovarSiToca } from './creditos.js';
+import { cobrar, devolverPorReferencia, pagoVozIA, proximaRenovacion, renovarSiToca } from './creditos.js';
+
+/** '2026-12-01' -> '1 de diciembre' */
+function fechaCorta(iso) {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long' }).format(new Date(a, m - 1, d));
+}
 import { anotarHistorial } from './estado.js';
 import { TIPOS_AUDIO } from './mezcla.js';
 
@@ -90,6 +97,14 @@ export async function crearVozIA({ db, voz, reloj, usuariaId, videoId, costoAcep
       if (!texto) throw new ErrorApp(422, 'SIN_GUION', 'Este video no tiene guion para narrar. Graba tu voz o crea el video otra vez.');
 
       const pago = pagoVozIA(usuaria);
+      if (pago.agotadas) {
+        throw new ErrorApp(
+          402,
+          'LIMITE_VOCES_IA',
+          `Ya usaste tus ${pago.maxMes} voces de IA de este mes. Vuelven el ${fechaCorta(proximaRenovacion(usuaria.periodo_creditos))}, o sube de plan para usarla sin límite. Grabar tu propia voz sigue siendo gratis.`,
+          { datos: { usadas: pago.usadasMes, maximo: pago.maxMes, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) }, reintentable: false },
+        );
+      }
       if (costoAceptado !== pago.costo) {
         throw new ErrorApp(409, 'FALTA_CONFIRMAR', `Antes de crear hay que confirmar el costo: ${pago.costo} créditos.`, {
           datos: { costo: pago.costo, bolsa: pago.bolsa },

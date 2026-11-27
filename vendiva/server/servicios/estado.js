@@ -8,6 +8,8 @@ import { pagoVozIA, renovarSiToca, proximaRenovacion, semanaDe } from './credito
 import { agendaDe } from './publicaciones.js';
 import { textosRedesDe } from './textos-redes.js';
 import { vitrinaDe } from './vitrina.js';
+import { pagosDe, tieneSuscripcion } from './pagos.js';
+import { ZONA_HORARIA } from '../../shared/datos.js';
 
 export function productoPublico(p) {
   return {
@@ -201,7 +203,10 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
         // Voz de IA: cuánto cuesta, con qué se paga la próxima y cuántas lleva este mes (Gratis: 3).
         vozIA: pagoVozIA(usuaria),
         periodo: usuaria.periodo_creditos,
-        renuevaEl: proximaRenovacion(usuaria.periodo_creditos),
+        // Con suscripción: el día de su próximo cobro (en su propia fecha). Si no, el día 1.
+        renuevaEl: tieneSuscripcion(usuaria) && usuaria.suscripcion_fin
+          ? new Intl.DateTimeFormat('en-CA', { timeZone: ZONA_HORARIA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(usuaria.suscripcion_fin)
+          : proximaRenovacion(usuaria.periodo_creditos),
       },
       productos: productos.map(productoPublico),
       creaciones,
@@ -211,6 +216,8 @@ export async function construirEstado(db, usuariaId, ahora = new Date()) {
       agenda,
       textosRedes,
       vitrina,
+      // Parte 7: pagos (modo de prueba) y su suscripción.
+      pagos: pagosDe(usuaria),
       limites: {
         productosUsados: totalProductos,
         productosMax: plan.maxProductos,

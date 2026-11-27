@@ -1,7 +1,7 @@
 // La voz de un video ya listo (los de Runway salen sin sonido). Parte 4.
 //   - Voz real (la principal): ella graba su voz aquí. Gratis, sin créditos y sin límite.
 //   - Voz de IA (ElevenLabs): narra el guion. 2 créditos de texto, con el aviso antes.
-//     Plan Gratis: 3 al mes; después solo con créditos de paquete o subiendo de plan.
+//     Plan Gratis: 3 al mes; después se frena hasta el mes siguiente o hasta subir de plan.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Mic, RotateCcw, Sparkles, Square, UserRound } from 'lucide-react';
@@ -203,7 +203,6 @@ export function VozDelVideo({ video, nombre, producto, irA }) {
   const lineas = lineasDeVoz(video);
   const pago = datos.creditos.vozIA;
   const enGratis = pago.maxMes != null;
-  const conPaquete = pago.bolsa === 'paquete';
   const renuevaEl = datos.creditos.renuevaEl;
 
   const abrirGrabar = () => {
@@ -217,8 +216,7 @@ export function VozDelVideo({ video, nombre, producto, irA }) {
 
   const nota = [
     `La hace ${MOTOR_VOZ.nombre} con una voz femenina en español, leyendo el guion del video.`,
-    enGratis && !conPaquete ? `Es tu voz de IA ${pago.usadasMes + 1} de ${pago.maxMes} de este mes.` : null,
-    enGratis && conPaquete ? `Ya usaste tus ${pago.maxMes} voces de IA de este mes: esta se paga con créditos de tus paquetes.` : null,
+    enGratis ? `Es tu voz de IA ${pago.usadasMes + 1} de ${pago.maxMes} de este mes.` : null,
     video.voz ? 'Reemplaza la voz que tiene ahora.' : null,
     'Si falla, no se cobra nada.',
   ]
@@ -247,9 +245,21 @@ export function VozDelVideo({ video, nombre, producto, irA }) {
             <Boton icono={Mic} onClick={abrirGrabar} disabled={!lineas.length}>
               Grabar mi voz · gratis
             </Boton>
-            <Boton variante="suave" icono={Sparkles} onClick={abrirIA} disabled={!lineas.length}>
-              Voz de IA · {pago.costo} créditos
-            </Boton>
+            {pago.agotadas ? (
+              <div className="rounded-2xl bg-amber-100 p-4 ring-1 ring-inset ring-amber-300/70" role="status">
+                <p className="text-base font-semibold leading-snug text-amber-950">
+                  Ya usaste tus {pago.maxMes} voces de IA de este mes. Vuelven el {fechaLarga(renuevaEl)}.
+                </p>
+                <p className="mt-1 text-base leading-snug text-amber-950/85">En los planes de pago la voz de IA no tiene límite. Grabar tu propia voz sigue siendo gratis.</p>
+                <Boton variante="secundario" className="mt-3 min-h-12" onClick={() => irA('planes')}>
+                  Subir de plan
+                </Boton>
+              </div>
+            ) : (
+              <Boton variante="suave" icono={Sparkles} onClick={abrirIA} disabled={!lineas.length}>
+                Voz de IA · {pago.costo} créditos
+              </Boton>
+            )}
           </div>
           {enGratis && (
             <p className="mt-2 text-base leading-snug text-stone-600">
@@ -274,14 +284,8 @@ export function VozDelVideo({ video, nombre, producto, irA }) {
         costo={pago.costo}
         saldo={{ total: pago.saldo, renuevaEl }}
         plan={datos.plan}
-        unidad={conPaquete ? 'de paquete' : 'de texto'}
+        unidad="de texto"
         frenaSiempre={pago.frena}
-        tituloFreno={conPaquete ? `Ya usaste tus ${pago.maxMes} voces de IA de este mes` : undefined}
-        detalleFreno={
-          conPaquete
-            ? `Para seguir usando la voz de IA, compra créditos (paquetes) o sube de plan. El ${fechaLarga(renuevaEl)} vuelves a tener ${pago.maxMes}. Grabar tu propia voz sigue siendo gratis.`
-            : undefined
-        }
         nota={nota}
         creando={crearIA.cargando}
         textoCreando="Creando la voz…"

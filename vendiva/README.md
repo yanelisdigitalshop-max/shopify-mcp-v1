@@ -15,7 +15,7 @@ Esta es la **app real** (servidor + base de datos), no el prototipo. Se construy
 | Parte 4 | Videos con IA (Runway Gen-4 Turbo): 3 videos cortos, 3 desde la foto y 3 GIFs por producto; créditos de texto y de video por separado | Código listo y probado con un Runway de mentira. **Falta la llave de Runway** |
 | Parte 5 | Voz (hecha en la Parte 4) y Programar: su calendario de publicaciones | Lista para revisar |
 | Parte 6 | Textos para 4 redes y Vitrina | Lista para revisar (probada con una IA de mentira) |
-| Parte 7 | Pagos (primero en modo de prueba) | Pendiente |
+| Parte 7 | Pagos con Stripe, en modo de prueba | Código listo y probado con un Stripe de mentira. **Faltan las llaves de prueba de Stripe.** Ningún cobro real sin aprobación escrita de la dueña |
 | Parte 8 | Publicar en Apple y Google | Pendiente |
 
 ## Paso 0: dónde va la llave de Anthropic
@@ -88,6 +88,9 @@ Variables de entorno (ver `.env.example`):
 | `VENDIVA_RUNWAY_API_KEY` | Llave de la API de Runway (videos con IA) | Desde la Parte 4 |
 | `VENDIVA_ELEVENLABS_API_KEY` | Llave de la API de ElevenLabs (voz de IA de los videos) | Desde la Parte 4 |
 | `VENDIVA_ELEVENLABS_VOICE_ID` | La voz de IA elegida (femenina, español). Vacía = voz prediseñada | No, pero recomendada |
+| `VENDIVA_STRIPE_SECRET_KEY` | Llave secreta de Stripe. **Solo de prueba** (`sk_test_...`): con otra el servidor no arranca | Desde la Parte 7 |
+| `VENDIVA_STRIPE_WEBHOOK_SECRET` | Secreto del webhook de Stripe (`whsec_...`) | Desde la Parte 7 |
+| `VENDIVA_PAGOS_REALES` | Quita el seguro de cobros reales. **No se pone** hasta que la dueña lo apruebe por escrito | No |
 | `APP_ORIGIN` | Dirección pública, por ejemplo `https://app.vendiva.com` | Recomendada |
 | `ANTHROPIC_MODEL` | Otro modelo de Claude. Por defecto `claude-haiku-5-5` | No |
 | `PORT` | Puerto. Por defecto 3000 | No |
@@ -117,6 +120,8 @@ server/
   servicios/publicaciones.js  Programar: su calendario de publicaciones
   servicios/textos-redes.js  Textos de cada guion para Instagram, Facebook y Pinterest
   servicios/vitrina.js  Vitrina (solo Pro): calificaciones y plan
+  fuentes/stripe.js    Conexión con Stripe (página de pago, suscripciones, firma de los avisos)
+  servicios/pagos.js   Planes pagados, paquetes, cambios de plan, cancelación y cobros fallidos
 src/
   estado/Estado.jsx    Un solo estado central; el servidor es la fuente de verdad
   componentes/         ProductCard, PlanCard, Stepper, TabBar, EmptyState, LoadingPulse...
@@ -192,7 +197,7 @@ Los videos de Runway salen sin sonido. Cada video listo tiene «Voz del video»:
 
 - **Voz real (la principal):** ella graba su voz en la app leyendo el guion (hasta 10 segundos, lo que dura el video). Gratis, sin créditos y sin límite. Se escucha junto al video en la app.
 - **Voz de IA (ElevenLabs):** narra lo que «se escucha» del guion sin cámara con una voz femenina en español. **2 créditos de texto**, siempre con el aviso antes (costo, saldo y lo que queda); nada se genera hasta «Sí, crear». Si ElevenLabs falla, se devuelve todo y el uso no cuenta.
-  - **Plan Gratis:** 3 voces de IA al mes con sus créditos de texto. Desde la 4.ª, solo con créditos de paquete; si no tiene, frena con «compra créditos o sube de plan». Vuelven a 3 el día 1.
+  - **Plan Gratis:** 3 voces de IA al mes con sus créditos de texto. Desde la 4.ª se frena hasta el mes siguiente o hasta subir de plan (los paquetes son de video y no pagan la voz; decisión de la dueña, 27 nov 2026). Vuelven a 3 el día 1.
   - **Planes de pago:** sin límite; los créditos de texto siguen su regla de siempre (no frenan).
 - **ElevenLabs** (`server/fuentes/elevenlabs.js`), verificado en su SDK oficial (github.com/elevenlabs/elevenlabs-js) el 25 nov 2026: `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_128`, cabecera `xi-api-key`, modelo `eleven_multilingual_v2`. Precio de lista cerca de 0,10 USD por 1.000 caracteres: unos 2 centavos por narración. Nunca se reintenta solo.
 - **Cada video tiene una sola voz;** la nueva reemplaza a la anterior. El audio (unos 10 segundos) se guarda en la base (`voces`) para unirlo al video.
@@ -228,6 +233,44 @@ Decisiones de la dueña (27 nov 2026):
 - **Aviso si baja de 4**, en la Vitrina y arriba en Hoy.
 - Si la IA falla, la calificación igual queda guardada y el plan se pide otra vez con «Crear mi plan» (`POST /api/vitrina/:id/plan`).
 - **Gratis, Esencial y Crecimiento** ven el aviso «Subir de plan», igual que en Tendencias; el servidor no deja guardar (`SOLO_PRO`) ni manda su historial. Quien eligió el objetivo «Subir la calificación de mi vitrina» sin ser Pro también ve el aviso en Hoy. La tarjeta de cada plan en Planes dice si incluye la Vitrina.
+
+## Parte 7: pagos con Stripe (modo de prueba)
+
+**Ningún cobro real hasta que la dueña lo apruebe por escrito.** El seguro está en el código:
+
+- Con una llave de Stripe que no sea de prueba (`sk_test_` o `rk_test_`), **el servidor no arranca** (`server/config.js`). La conexión con Stripe lo revisa otra vez antes de cada llamada.
+- El seguro solo se quita poniendo `VENDIVA_PAGOS_REALES` con un texto exacto que está en el código. No se pone hasta la aprobación escrita.
+- Los avisos de Stripe de modo real se ignoran mientras el seguro esté puesto.
+
+Decisiones de la dueña (27 nov 2026):
+
+- **Qué se vende:** suscripciones mensuales (Esencial $19, Crecimiento $39, Pro $59) y paquetes de créditos de video como compra única. Sin prueba gratis: el plan Gratis ya es la prueba.
+- **Créditos:** al pagar recibe enseguida todos los créditos del plan; se reponen en cada cobro mensual, en su propia fecha (no se acumulan). El plan Gratis sigue con el día 1.
+- **Subir de plan:** inmediato; Stripe cobra solo la diferencia de los días que faltan y recibe ya los créditos del plan nuevo. Si el cobro no pasa, no cambia nada.
+- **Bajar de plan o cancelar:** sigue en su plan hasta el fin del mes pagado; después baja o vuelve a Gratis. Si vuelve a Gratis con más de 6 productos, los conserva pero no puede agregar más. Los créditos de paquete no vencen.
+- **Cobro fallido:** Stripe reintenta unos días y se le avisa en Hoy y en Planes, con el botón para actualizar su forma de pago. Si no se logra, vuelve a Gratis.
+- **Sin reembolsos:** puede cancelar cuando quiera y no se vuelve a cobrar; los paquetes no se reembolsan una vez entregados.
+- **Voz de IA:** los paquetes son de video y no pagan la voz. En Gratis, después de las 3 voces de IA del mes, se frena hasta el mes siguiente o hasta subir de plan. En los planes de pago, sin límite.
+- **Términos:** antes de cualquier pago se muestra qué se cobra, cuándo, cómo cancelar y que no hay reembolsos, y ella marca «Acepto los términos de pago y cancelación». Se guarda qué versión aceptó y cuándo. El texto (`shared/terminos.js`) es un **borrador** que la dueña o un abogado revisan antes de cobrar de verdad.
+- **Impuestos: PENDIENTE.** La dueña o su contador lo confirman antes de los cobros reales.
+- **Apple y Google:** por ahora se paga desde la página web de Vendiva; se revisa en la Parte 8.
+
+Cómo funciona:
+
+- Elegir un plan o un paquete abre la **página de pago de Stripe** (Checkout). Stripe muestra las formas de pago que estén activas en la cuenta de la dueña (tarjetas, Apple Pay, Google Pay, Klarna…).
+- Los créditos y el plan **solo cambian cuando Stripe avisa** que el cobro pasó (webhook firmado en `POST /api/pagos/webhook`), una sola vez por cobro (tablas `pagos` y `eventos_stripe`). Un pago que queda en proceso (por ejemplo Klarna) se entrega cuando Stripe confirma.
+- «Mis recibos y forma de pago» abre el portal de clientes de Stripe.
+- La API se verificó en el paquete oficial de Stripe para Node (23.2.0, versión de API `2026-11-18.endive`), porque docs.stripe.com no se pudo abrir desde el entorno de desarrollo.
+
+Para conectarlo (lo hace la dueña, en modo de prueba):
+
+1. En dashboard.stripe.com, con **Modo de prueba** encendido, copiar la llave secreta (`sk_test_...`) a `VENDIVA_STRIPE_SECRET_KEY`.
+2. En Desarrolladores → Webhooks, crear un endpoint a `https://<dominio>/api/pagos/webhook` con los eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated` y `customer.subscription.deleted`. Copiar su secreto (`whsec_...`) a `VENDIVA_STRIPE_WEBHOOK_SECRET`.
+3. En Facturación → Reintentos de cobro: que al agotar los reintentos **se cancele la suscripción** (así vuelve a Gratis).
+4. En el portal de clientes: permitir solo cambiar la forma de pago y ver recibos (cancelar y cambiar de plan se hacen en Vendiva).
+5. Probar con la tarjeta 4242 4242 4242 4242.
+
+**Sin construir todavía:** PayPal (va aparte; falta decidir cómo conectarlo), Shop Pay (no está en la página de pago de Stripe) y Bitcoin (fuera por decisión de la dueña).
 
 ## Decisiones de la dueña sobre la Parte 1
 

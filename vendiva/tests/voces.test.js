@@ -155,7 +155,7 @@ test('voz de IA: narra el guion sin cámara (lo que se escucha), sin [marcas]', 
 test('voz de IA en Gratis: sin confirmar el costo no se crea; con «Sí, crear» cuesta 2 créditos de texto y cuenta 1 de 3', async () => {
   const { c, usuariaId, productoId, videoId } = await videoListo();
   let e = await estado(c);
-  assert.deepEqual(e.creditos.vozIA, { costo: 2, bolsa: 'texto', saldo: 30, frena: true, usadasMes: 0, maxMes: 3 });
+  assert.deepEqual(e.creditos.vozIA, { costo: 2, bolsa: 'texto', saldo: 30, frena: true, usadasMes: 0, maxMes: 3, agotadas: false });
 
   const sin = await vozIA(c, videoId);
   assert.equal(sin.estado, 409);
@@ -181,29 +181,32 @@ test('voz de IA en Gratis: sin confirmar el costo no se crea; con «Sí, crear»
   assert.deepEqual(guardada, { texto: narrado, proveedor: 'elevenlabs', modelo: 'eleven_multilingual_v2' });
 });
 
-test('voz de IA en Gratis: 3 al mes; la 4.ª solo con créditos de paquete (o frena sin llamar a ElevenLabs)', async () => {
+test('voz de IA en Gratis: 3 al mes; la 4.ª frena hasta el mes siguiente (los paquetes no pagan la voz)', async () => {
   const { c, usuariaId, videoId } = await videoListo();
   for (let i = 0; i < 3; i++) assert.equal((await vozIA(c, videoId, 2)).estado, 201);
   let e = await estado(c);
   assert.equal(e.creditos.total, 24);
-  assert.deepEqual(e.creditos.vozIA, { costo: 2, bolsa: 'paquete', saldo: 0, frena: true, usadasMes: 3, maxMes: 3 });
+  assert.deepEqual(e.creditos.vozIA, { costo: 2, bolsa: 'texto', saldo: 24, frena: true, usadasMes: 3, maxMes: 3, agotadas: true });
 
   voz.llamadas.length = 0;
   const cuarta = await vozIA(c, videoId, 2);
   assert.equal(cuarta.estado, 402);
-  assert.equal(cuarta.json.error.codigo, 'CREDITOS_INSUFICIENTES');
-  assert.match(cuarta.json.error.mensaje, /compra créditos o sube de plan/);
+  assert.equal(cuarta.json.error.codigo, 'LIMITE_VOCES_IA');
+  assert.match(cuarta.json.error.mensaje, /sube de plan/);
   assert.equal(voz.llamadas.length, 0);
   assert.equal(await usadas(usuariaId), 3);
 
-  // Con un paquete comprado sí: se paga con el paquete, los de texto no se tocan.
+  // Ni con créditos de paquete: esos son solo de video.
   await s.db.query('update usuarias set creditos_paquete = 10 where id = $1', [usuariaId]);
   const conPaquete = await vozIA(c, videoId, 2);
-  assert.equal(conPaquete.estado, 201);
-  e = conPaquete.json.estado;
-  assert.equal(e.creditos.total, 24);
-  assert.equal(e.creditos.video.paquete, 8);
-  assert.equal((await movimientos(usuariaId)).at(-1).bolsa, 'paquete');
+  assert.equal(conPaquete.json.error.codigo, 'LIMITE_VOCES_IA');
+  e = await estado(c);
+  assert.equal(e.creditos.video.paquete, 10, 'los del paquete no se tocan');
+  assert.equal(voz.llamadas.length, 0);
+
+  // El mes siguiente vuelven las 3.
+  await s.db.query("update usuarias set periodo_creditos = '2000-01' where id = $1", [usuariaId]);
+  assert.equal((await vozIA(c, videoId, 2)).estado, 201);
 });
 
 test('voz de IA en Gratis: si no alcanzan los créditos de texto, frena aunque le queden usos', async () => {
@@ -242,7 +245,7 @@ test('voz de IA sin la llave de ElevenLabs: avisa, no cobra y ofrece grabar su v
 test('voz de IA en planes de pago: sin límite, con créditos de texto, y no frena en cero', async () => {
   const { c, usuariaId, videoId } = await videoListo({ plan: 'esencial' });
   let e = await estado(c);
-  assert.deepEqual(e.creditos.vozIA, { costo: 2, bolsa: 'texto', saldo: 100, frena: false, usadasMes: 0, maxMes: null });
+  assert.deepEqual(e.creditos.vozIA, { costo: 2, bolsa: 'texto', saldo: 100, frena: false, usadasMes: 0, maxMes: null, agotadas: false });
   for (let i = 0; i < 5; i++) assert.equal((await vozIA(c, videoId, 2)).estado, 201);
   e = await estado(c);
   assert.equal(e.creditos.total, 90);

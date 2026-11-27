@@ -106,6 +106,14 @@ export function ProveedorEstado({ children }) {
       guardarVitrina: (datos) => guardar(api.post('/vitrina', datos, { esperaMs: ESPERA_IA_MS })),
       reintentarPlanVitrina: (id) => guardar(api.post(`/vitrina/${id}/plan`, {}, { esperaMs: ESPERA_IA_MS })),
 
+      // Parte 7: pagos con Stripe (modo de prueba). Si la respuesta trae una dirección, se va a la
+      // página de pago de Stripe; al volver, el servidor ya sabe (por el aviso de Stripe) si se pagó.
+      elegirPlan: (plan) => guardar(api.post('/pagos/plan', { plan, aceptaTerminos: true })),
+      comprarPaquete: (paquete) => guardar(api.post('/pagos/paquete', { paquete, aceptaTerminos: true })),
+      cancelarPlan: () => guardar(api.post('/pagos/cancelar')),
+      reanudarPlan: () => guardar(api.post('/pagos/reanudar')),
+      abrirPortal: () => api.post('/pagos/portal'),
+
       // Baja el archivo al teléfono; el servidor lo marca como descargado y se trae el estado nuevo.
       async descargarVideo(videoId) {
         const r = await api.descargar(`/videos/${videoId}/descargar`);

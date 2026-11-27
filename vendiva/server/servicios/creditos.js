@@ -71,8 +71,6 @@ const BOLSAS = {
     { columna: 'creditos_video_plan', bolsa: 'video_plan' }, // se repone el día 1
     { columna: 'creditos_paquete', bolsa: 'paquete' }, // paquetes comprados: no vencen
   ],
-  // Voz de IA en el plan Gratis, pasados sus 3 usos del mes: solo con créditos de paquetes.
-  paquete: [{ columna: 'creditos_paquete', bolsa: 'paquete' }],
 };
 
 export function saldoDe(usuaria, tipo = 'texto') {
@@ -92,8 +90,8 @@ export function saldoDe(usuaria, tipo = 'texto') {
  */
 export async function cobrar(t, usuaria, { costo, motivo, referencia, tipo = 'texto' }) {
   const saldo = saldoDe(usuaria, tipo);
-  const frena = tipo === 'video' ? videoFrenaEnCero(usuaria.plan) : tipo === 'paquete' ? true : planFrenaEnCero(usuaria.plan);
-  const unidad = tipo === 'video' ? 'créditos de video' : tipo === 'paquete' ? 'créditos de paquete' : 'créditos';
+  const frena = tipo === 'video' ? videoFrenaEnCero(usuaria.plan) : planFrenaEnCero(usuaria.plan);
+  const unidad = tipo === 'video' ? 'créditos de video' : 'créditos';
 
   if (saldo < costo && frena) {
     throw new ErrorApp(
@@ -101,9 +99,7 @@ export async function cobrar(t, usuaria, { costo, motivo, referencia, tipo = 'te
       'CREDITOS_INSUFICIENTES',
       tipo === 'video'
         ? `No te alcanzan los créditos de video. Esto cuesta ${costo} y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`
-        : tipo === 'paquete'
-          ? `Ya usaste tus voces de IA del mes. Para más, compra créditos o sube de plan. Esto cuesta ${costo} créditos de paquete y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`
-          : `Ya se te terminó lo gratis de este mes. Esto cuesta ${costo} ${costo === 1 ? 'crédito' : 'créditos'} y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`,
+        : `Ya se te terminó lo gratis de este mes. Esto cuesta ${costo} ${costo === 1 ? 'crédito' : 'créditos'} y te ${saldo === 1 ? 'queda' : 'quedan'} ${saldo}.`,
       { datos: { costo, saldo, tipo, unidad, renuevaEl: proximaRenovacion(usuaria.periodo_creditos) } },
     );
   }
@@ -146,6 +142,9 @@ export async function devolver(t, usuariaId, cobro, { referencia }) {
 export async function renovarSiToca(t, usuaria, ahora = new Date()) {
   const periodo = periodoDe(ahora);
   if (usuaria.periodo_creditos === periodo) return usuaria;
+  // Parte 7: con una suscripción de Stripe viva, los créditos del plan se reponen en cada
+  // cobro mensual (lo hace servicios/pagos.js), no el día 1.
+  if (usuaria.suscripcion_id && ['active', 'past_due', 'trialing'].includes(usuaria.suscripcion_estado)) return usuaria;
 
   const { creditosTextoMes: texto, creditosVideoMes: video } = PLANES[usuaria.plan];
   await t.query(
@@ -179,17 +178,16 @@ export async function devolverPorReferencia(t, usuariaId, referencia) {
 }
 
 /**
- * Con qué se paga la próxima voz de IA.
- *   bolsa: 'texto' | 'paquete'; saldo: lo que tiene en esa bolsa; frena: si no alcanza, no se crea.
+ * Cómo se paga la próxima voz de IA (siempre con créditos de texto).
+ *   Gratis: 3 al mes. Pasadas las 3 se frena hasta el mes siguiente o hasta subir de plan
+ *   (agotadas: true). Los paquetes son de video: no pagan la voz (decisión de la dueña, 27 nov 2026).
+ *   Planes de pago: sin límite; los créditos de texto no frenan.
  */
 export function pagoVozIA(usuaria) {
   const costo = COSTOS_CREDITOS.vozIA;
   if (planFrenaEnCero(usuaria.plan)) {
     const max = LIMITES_GRATIS.vocesIAMes;
-    if (usuaria.voces_ia_mes < max) {
-      return { costo, bolsa: 'texto', saldo: usuaria.creditos_plan, frena: true, usadasMes: usuaria.voces_ia_mes, maxMes: max };
-    }
-    return { costo, bolsa: 'paquete', saldo: usuaria.creditos_paquete, frena: true, usadasMes: usuaria.voces_ia_mes, maxMes: max };
+    return { costo, bolsa: 'texto', saldo: usuaria.creditos_plan, frena: true, usadasMes: usuaria.voces_ia_mes, maxMes: max, agotadas: usuaria.voces_ia_mes >= max };
   }
-  return { costo, bolsa: 'texto', saldo: usuaria.creditos_plan, frena: false, usadasMes: usuaria.voces_ia_mes, maxMes: null };
+  return { costo, bolsa: 'texto', saldo: usuaria.creditos_plan, frena: false, usadasMes: usuaria.voces_ia_mes, maxMes: null, agotadas: false };
 }

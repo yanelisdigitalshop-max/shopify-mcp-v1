@@ -10,6 +10,7 @@ import { AvisoError, Boton, Campo, Hoja, Tarjeta } from '../componentes/base.jsx
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { SeccionAgenda } from './Agenda.jsx';
 import { AvisoVitrinaHoy } from './Vitrina.jsx';
+import { AvisoPagoHoy } from './Planes.jsx';
 import { SeccionExtras, SeccionGuiones } from './Creaciones.jsx';
 import { FormularioProducto } from './FormularioProducto.jsx';
 import { SeccionVideos } from './Videos.jsx';
@@ -166,6 +167,7 @@ export function Hoy({ irA, foco }) {
       </div>
 
       <div className="mt-8 space-y-8 md:col-span-3 md:mt-1">
+        <AvisoPagoHoy irA={irA} />
         <AvisoVitrinaHoy irA={irA} />
         <SeccionAgenda />
         <section aria-labelledby="titulo-producto-hoy">

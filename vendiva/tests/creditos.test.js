@@ -26,7 +26,7 @@ test('cuenta nueva: 30 créditos de texto del plan Gratis y su video gratis del 
     total: 30,
     video: { plan: 0, paquete: 0, total: 0 },
     videoGratis: { incluido: true, disponible: true, segundos: 10 },
-    vozIA: { costo: 2, bolsa: 'texto', saldo: 30, frena: true, usadasMes: 0, maxMes: 3 },
+    vozIA: { costo: 2, bolsa: 'texto', saldo: 30, frena: true, usadasMes: 0, maxMes: 3, agotadas: false },
     periodo: '2026-11',
     renuevaEl: '2026-12-01',
   });

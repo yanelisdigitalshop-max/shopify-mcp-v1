@@ -19,6 +19,9 @@ import { rutasVideos } from './rutas/videos.js';
 import { vozReal } from './fuentes/elevenlabs.js';
 import { rutasPublicaciones } from './rutas/publicaciones.js';
 import { rutasRedesVitrina } from './rutas/redes-vitrina.js';
+import { rutasPagos, webhookStripe } from './rutas/pagos.js';
+import { stripeReal } from './fuentes/stripe.js';
+import { ponerModoPagos } from './servicios/pagos.js';
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -56,7 +59,9 @@ function protegerCambios(config) {
   };
 }
 
-export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal, fastmoss = fastmossReal, runway = runwayReal, voz = vozReal }) {
+export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal, fastmoss = fastmossReal, runway = runwayReal, voz = vozReal, stripe = stripeReal }) {
+  // Parte 7: el modo de pagos ('apagado' | 'prueba' | 'real') que se muestra en la app.
+  ponerModoPagos(stripe.lista() ? stripe.modo() : 'apagado');
   const app = express();
   app.disable('x-powered-by');
   if (config.confiarEnProxy) app.set('trust proxy', Number(config.confiarEnProxy) || config.confiarEnProxy);
@@ -122,14 +127,20 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal, fa
       fastmoss: config.fastmoss.llaveConfigurada ? 'llave puesta' : 'falta la llave',
       runway: config.runway.llaveConfigurada ? 'llave puesta' : 'falta la llave',
       elevenlabs: config.elevenlabs.llaveConfigurada ? 'llave puesta' : 'falta la llave',
+      // Parte 7: nunca la llave; solo si está y en qué modo.
+      stripe: config.pagos.llaveConfigurada ? `llave puesta (modo ${config.pagos.modo})` : 'falta la llave',
+      stripeWebhook: config.pagos.webhookConfigurado ? 'secreto puesto' : 'falta el secreto',
     });
   });
+
+  // Avisos de Stripe: con su firma y el cuerpo crudo, antes de la defensa CSRF y del lector de JSON.
+  api.post('/pagos/webhook', express.raw({ type: () => true, limit: '1mb' }), webhookStripe({ db, reloj, stripe }));
 
   api.use(protegerCambios(config));
   api.use(express.json({ limit: '100kb' }));
   api.use(cargarSesion(db, config));
 
-  const contexto = { db, config, reloj, ia, fastmoss, runway, voz };
+  const contexto = { db, config, reloj, ia, fastmoss, runway, voz, stripe };
   api.use(rutasCuenta(contexto));
   api.use(rutasPerfil(contexto));
   api.use(rutasProductos(contexto));
@@ -138,6 +149,7 @@ export function crearApp({ db, config, reloj = () => new Date(), ia = iaReal, fa
   api.use(rutasVideos(contexto));
   api.use(rutasPublicaciones(contexto));
   api.use(rutasRedesVitrina(contexto));
+  api.use(rutasPagos(contexto));
 
   api.use((_req, _res, next) => next(new ErrorApp(404, 'RUTA_NO_ENCONTRADA', 'Esa dirección no existe.')));
 

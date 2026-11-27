@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, LogOut, Mail } from 'lucide-react';
-import { MODOS_GRABACION, NEGOCIO, OBJETIVOS, REDES, formatoNumero } from '../../shared/datos.js';
+import { MODOS_GRABACION, NEGOCIO, OBJETIVOS, PLANES, REDES, formatoNumero } from '../../shared/datos.js';
 import { AvisoError, Boton, Campo, Opcion, Tarjeta } from '../componentes/base.jsx';
 import { useAccion, useEstado } from '../estado/Estado.jsx';
 import { BotonAtras } from './Acceso.jsx';
@@ -35,6 +35,20 @@ function describir({ tipo, detalle }) {
       if (!que) return null;
       return `Creaste ${que} para «${detalle.nombre}»${detalle.creditos ? ` (${detalle.creditos} créditos)` : ''}`;
     }
+    case 'pago_plan':
+      return detalle.antes === detalle.plan ? `Se cobró tu plan ${PLANES[detalle.plan]?.nombre ?? ''}` : `Pasaste al plan ${PLANES[detalle.plan]?.nombre ?? detalle.plan}`;
+    case 'pago_paquete':
+      return `Compraste el paquete ${detalle.nombre} (${formatoNumero(detalle.creditos)} créditos de video)`;
+    case 'pago_fallido':
+      return 'Tu cobro mensual no pasó';
+    case 'plan_programado':
+      return `Cambiaste a ${PLANES[detalle.a]?.nombre ?? detalle.a} desde tu próximo cobro`;
+    case 'plan_cancelado':
+      return 'Cancelaste tu plan';
+    case 'plan_reanudado':
+      return 'Seguiste con tu plan';
+    case 'vuelta_a_gratis':
+      return 'Volviste al plan Gratis';
     case 'textos_redes':
       return `Creaste textos para tus redes de «${detalle.titulo}»${detalle.creditos ? ` (${detalle.creditos} créditos)` : ''}`;
     case 'vitrina_actualizada':
