@@ -266,6 +266,14 @@ Para conectarlo (lo hace la dueña, en modo de prueba):
 
 1. En dashboard.stripe.com, con **Modo de prueba** encendido, copiar la llave secreta (`sk_test_...`) a `VENDIVA_STRIPE_SECRET_KEY`.
 2. En Desarrolladores → Webhooks, crear un endpoint a `https://<dominio>/api/pagos/webhook` con los eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated` y `customer.subscription.deleted`. Copiar su secreto (`whsec_...`) a `VENDIVA_STRIPE_WEBHOOK_SECRET`.
+   - **Mientras no haya dominio** (probando en una computadora): en vez de crear el endpoint en el panel, usar la herramienta de línea de comandos de Stripe (Stripe CLI), que reenvía los avisos al servidor local. Con la app corriendo (`npm run dev`), en otra terminal:
+
+     ```bash
+     stripe listen --forward-to localhost:3000/api/pagos/webhook
+     ```
+
+     Al arrancar muestra su propio secreto (`whsec_...`): ese va en `VENDIVA_STRIPE_WEBHOOK_SECRET` mientras se prueba así (en el `.env`, nunca en un chat). Cambia si se vuelve a iniciar sesión en la CLI. Cuando haya dominio, se crea el endpoint del panel y se usa su secreto.
+   - **Sin secreto del webhook, los pagos quedan apagados:** la pestaña Planes dice «Los pagos todavía no están activos». Es a propósito: sin los avisos de Stripe, un pago no podría activar el plan ni entregar los créditos.
 3. En Facturación → Reintentos de cobro: que al agotar los reintentos **se cancele la suscripción** (así vuelve a Gratis).
 4. En el portal de clientes: permitir solo cambiar la forma de pago y ver recibos (cancelar y cambiar de plan se hacen en Vendiva).
 5. Probar con la tarjeta 4242 4242 4242 4242.
